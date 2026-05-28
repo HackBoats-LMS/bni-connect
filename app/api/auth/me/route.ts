@@ -17,11 +17,16 @@ export async function GET() {
 
     return Response.json({
       user: {
-        id: user._id.toString(), name: user.name, email: user.email,
-        profession: user.profession, company: user.company, bio: user.bio || '',
+        id: user._id.toString(), name: user.name || '', email: user.email || '',
+        profession: user.profession || '', company: user.company || '', bio: user.bio || '',
         avatar: user.avatar || '', city: user.city || '',
         availability: user.availability || 'Available',
-        latitude: user.latitude || null, longitude: user.longitude || null,
+        latitude: user.latitude != null ? Number(user.latitude) : null,
+        longitude: user.longitude != null ? Number(user.longitude) : null,
+        address: user.address || '',
+        currentLatitude: user.currentLatitude != null ? Number(user.currentLatitude) : null,
+        currentLongitude: user.currentLongitude != null ? Number(user.currentLongitude) : null,
+        currentCity: user.currentCity || '',
       },
     });
   } catch (error) {

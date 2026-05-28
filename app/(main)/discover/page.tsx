@@ -24,6 +24,8 @@ export default function DiscoverPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchingLocation, setSearchingLocation] = useState(false);
+  const [searchCenter, setSearchCenter] = useState<{latitude: number; longitude: number} | null>(null);
+  const [searchCity, setSearchCity] = useState<string | null>(null);
 
   const handleSearchLocation = async () => {
     if (!searchQuery.trim()) return;
@@ -37,14 +39,9 @@ export default function DiscoverPage() {
         const lngVal = parseFloat(place.lon);
         
         if (!isNaN(latVal) && !isNaN(lngVal)) {
-          const newCoords = {
-            latitude: latVal,
-            longitude: lngVal,
-          };
-          useLocationStore.getState().setCoords(newCoords);
-          
+          setSearchCenter({ latitude: latVal, longitude: lngVal });
           const cityPart = place.address?.city || place.address?.town || place.display_name.split(',')[0];
-          useLocationStore.setState({ city: cityPart });
+          setSearchCity(cityPart);
           setSearchQuery('');
         }
       }
@@ -55,23 +52,56 @@ export default function DiscoverPage() {
     }
   };
 
-  const filteredMembers = members.filter(m => 
-    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.profession.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.company.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleBackToMyLocation = () => {
+    setSearchCenter(null);
+    setSearchCity(null);
+  };
+
+  const isValidCoord = (val: unknown): val is number => {
+    return typeof val === 'number' && isFinite(val) && !isNaN(val);
+  };
+
+  const handleSeeOnMap = (member: NearbyMember) => {
+    const lat = member.latitude;
+    const lng = member.longitude;
+    
+    if (isValidCoord(lat) && isValidCoord(lng)) {
+      setSearchCenter({ latitude: lat, longitude: lng });
+      setSearchCity(member.company || member.name);
+    }
+  };
+
+  const [filterType, setFilterType] = useState<'all' | 'local' | 'traveling'>('all');
+
+  const filteredMembers = members.filter(m => {
+    const matchesSearch = 
+      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.profession.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.company.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    const isTraveling = !!(m.currentCity && m.city && m.currentCity.trim().toLowerCase() !== m.city.trim().toLowerCase());
+
+    if (filterType === 'traveling') return isTraveling;
+    if (filterType === 'local') return !isTraveling;
+    return true;
+  });
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
 
   async function fetchMembers(force = false) {
-    if (!coords) return;
+    const lat = searchCenter ? searchCenter.latitude : coords?.latitude;
+    const lng = searchCenter ? searchCenter.longitude : coords?.longitude;
+    if (!lat || !lng) return;
+
     if (force) setRefreshing(true);
     else setLoading(true);
 
     try {
-      const res = await fetch(`/api/members?lat=${coords.latitude}&lng=${coords.longitude}&radius=50`);
+      const res = await fetch(`/api/members?lat=${lat}&lng=${lng}&radius=50`);
       const data = await res.json();
       if (data.members) setMembers(data.members);
     } catch (e) {
@@ -83,8 +113,11 @@ export default function DiscoverPage() {
   }
 
   useEffect(() => {
-    if (coords) fetchMembers();
-  }, [coords]);
+    Promise.resolve().then(() => {
+      fetchMembers();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coords, searchCenter]);
 
   if (authLoading || !user) {
     return (
@@ -129,44 +162,71 @@ export default function DiscoverPage() {
             ) : (
               <div className="w-full h-full relative">
                 {/* Floating Search Bar over Map */}
-                <div className="absolute top-4 left-4 right-4 z-[1000] max-w-md">
-                  <div className="relative flex items-center bg-white border border-gray-200 rounded-2xl shadow-xl px-3.5 py-2.5 gap-2.5">
-                    <Search size={16} className="text-gray-400 shrink-0" />
-                    <input 
-                      type="text"
-                      placeholder="Filter members, or type a location to search..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSearchLocation();
-                      }}
-                      className="w-full text-xs font-semibold focus:outline-none text-gray-900 bg-transparent"
-                    />
-                    {searchingLocation ? (
-                      <Loader2 size={14} className="animate-spin text-[#e62e3d] shrink-0" />
-                    ) : searchQuery ? (
-                      <button 
-                        onClick={handleSearchLocation}
-                        className="text-[10px] bg-[#e62e3d] hover:bg-[#d02432] text-white font-bold px-2.5 py-1.5 rounded-lg active:scale-95 transition-all cursor-pointer shrink-0"
-                      >
-                        Search Location
-                      </button>
-                    ) : null}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-2rem)] max-w-md">
+                  <div className="relative flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl p-2.5 gap-2.5">
+                    <div className="relative flex items-center px-1">
+                      <Search size={16} className="text-gray-400 shrink-0 mr-2.5" />
+                      <input 
+                        type="text"
+                        placeholder="Filter businesses, or search landmark..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSearchLocation();
+                        }}
+                        className="w-full text-xs font-semibold focus:outline-none text-gray-900 bg-transparent"
+                      />
+                      {searchingLocation ? (
+                        <Loader2 size={14} className="animate-spin text-[#e62e3d] shrink-0" />
+                      ) : searchQuery ? (
+                        <button 
+                          onClick={handleSearchLocation}
+                          className="text-[10px] bg-[#e62e3d] hover:bg-[#d02432] text-white font-bold px-2.5 py-1.5 rounded-lg active:scale-95 transition-all cursor-pointer shrink-0"
+                        >
+                          Go
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {/* Segmented Filter Control */}
+                    <div className="flex border-t border-gray-100 pt-2.5 gap-1.5 w-full">
+                      {(['all', 'local', 'traveling'] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setFilterType(type)}
+                          className={`flex-1 text-[10px] font-bold py-1.5 px-2 rounded-lg transition-all capitalize select-none cursor-pointer text-center ${
+                            filterType === type
+                              ? 'bg-[#e62e3d]/10 text-[#e62e3d]'
+                              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {type === 'all' ? 'All Businesses' : type === 'local' ? 'Local Businesses' : '✈️ Traveling'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <MapView userLocation={coords} members={filteredMembers} />
+                <MapView userLocation={coords} members={filteredMembers} mapCenter={searchCenter ?? undefined} />
                 
                 {/* Floating location card (matches bottom-left of screenshot) */}
                 <div className="absolute bottom-6 left-6 z-[1000] bg-white border border-gray-150 rounded-2xl p-4 shadow-xl max-w-[280px] select-none">
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">You are in</span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{searchCity ? 'Viewing area' : 'You are in'}</span>
                   <div className="flex items-center justify-between gap-4 mt-0.5">
-                    <p className="text-sm font-bold text-gray-900 truncate">{city || 'Unknown location'}</p>
-                    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    <p className="text-sm font-bold text-gray-900 truncate">{searchCity || city || 'Unknown location'}</p>
+                    {searchCity && (
+                      <button 
+                        onClick={handleBackToMyLocation}
+                        className="text-[10px] font-bold text-[#e62e3d] hover:underline cursor-pointer whitespace-nowrap"
+                      >
+                        Back to me
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                     <span className="w-2 h-2 rounded-full bg-[#e62e3d] animate-pulse"></span>
-                    <span className="text-xs font-bold text-[#e62e3d]">{filteredMembers.length} members nearby</span>
+                    <span className="text-xs font-bold text-[#e62e3d]">{filteredMembers.length} businesses nearby</span>
                   </div>
                 </div>
               </div>
@@ -179,7 +239,7 @@ export default function DiscoverPage() {
             {/* Nearby Members Panel */}
             <div className="flex-1 bg-white border border-gray-200 rounded-3xl p-6 flex flex-col min-h-0 shadow-sm">
               <div className="flex items-center justify-between mb-5 shrink-0">
-                <h3 className="font-bold text-[16px] text-gray-900 tracking-tight">Nearby Members</h3>
+                <h3 className="font-bold text-[16px] text-gray-900 tracking-tight">Nearby Businesses</h3>
                 <button onClick={() => setView('list')} className="text-xs font-bold text-[#e62e3d] hover:underline cursor-pointer">
                   View All
                 </button>
@@ -203,13 +263,27 @@ export default function DiscoverPage() {
                   filteredMembers.slice(0, 5).map((m) => {
                     const statusColor = getStatusColor(m.availability);
                     return (
-                      <div key={m.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50/80 transition-colors border border-transparent hover:border-gray-100">
+                      <div 
+                        key={m.id} 
+                        onClick={() => handleSeeOnMap(m)}
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50/80 transition-colors border border-transparent hover:border-gray-100 cursor-pointer"
+                      >
                         <div className="flex items-center gap-3.5 min-w-0">
-                          <Avatar name={m.name} avatar={m.avatar} size="md" showStatus status={m.availability} />
+                          <Avatar name={m.company || m.name} avatar={m.avatar} size="md" showStatus status={m.availability} />
                           <div className="min-w-0">
-                            <h4 className="font-bold text-[14px] text-gray-900 truncate">{m.name}</h4>
-                            <p className="text-[11px] text-gray-500 font-medium truncate mt-0.5">{m.profession}</p>
-                            <p className="text-[10px] text-gray-400 font-semibold truncate">{m.company}</p>
+                            <h4 className="font-bold text-[14px] text-gray-900 truncate">{m.company || 'Unnamed Business'}</h4>
+                            <p className="text-[11px] text-gray-500 font-semibold truncate mt-0.5">{m.name}</p>
+                            <p className="text-[10px] text-gray-400 font-medium truncate">{m.profession}</p>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSeeOnMap(m);
+                              }}
+                              className="text-[10px] text-[#e62e3d] hover:text-[#d02432] font-bold hover:underline cursor-pointer block mt-1 text-left"
+                            >
+                              See on Map
+                            </button>
                           </div>
                         </div>
                         <div className="text-right shrink-0 ml-2">
@@ -223,7 +297,7 @@ export default function DiscoverPage() {
                   })
                 ) : (
                   <div className="text-center py-12">
-                    <p className="text-xs text-gray-400 font-semibold">No professionals nearby</p>
+                    <p className="text-xs text-gray-400 font-semibold">No businesses nearby</p>
                   </div>
                 )}
               </div>
@@ -235,7 +309,7 @@ export default function DiscoverPage() {
                 <MapPin size={18} />
               </div>
               <h4 className="text-sm font-bold text-gray-900 mb-1">Enable precise location</h4>
-              <p className="text-xs text-gray-500 leading-normal mb-4">Allow precise location to see more relevant nearby members.</p>
+              <p className="text-xs text-gray-500 leading-normal mb-4">Allow precise location to see more relevant nearby businesses.</p>
               <button 
                 onClick={updateLocation} 
                 disabled={isLocating}
@@ -284,7 +358,7 @@ export default function DiscoverPage() {
                     </div>
                   </div>
 
-                  <MapView userLocation={coords} members={filteredMembers} />
+                  <MapView userLocation={coords} members={filteredMembers} mapCenter={searchCenter ?? undefined} />
                 </motion.div>
               ) : (
                 <motion.div key="list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">

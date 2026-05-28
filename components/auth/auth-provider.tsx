@@ -2,9 +2,17 @@
 
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { useLocationStore } from '@/stores/use-location-store';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setLoading } = useAuthStore();
+  const { user, setUser, setLoading } = useAuthStore();
+
+  // Sync user profile coordinates to location store on load/change
+  useEffect(() => {
+    if (user) {
+      useLocationStore.getState().initializeFromUser(user);
+    }
+  }, [user]);
 
   useEffect(() => {
     async function loadUser() {

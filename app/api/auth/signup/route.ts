@@ -25,7 +25,9 @@ export async function POST(request: NextRequest) {
     const result = await users.insertOne({
       name, email, password: hashedPassword, profession, company,
       bio: '', avatar: '', city: '', availability: 'Available',
-      latitude: null, longitude: null, lastLocationUpdate: null,
+      latitude: null, longitude: null, address: '',
+      currentLatitude: null, currentLongitude: null, currentCity: '',
+      lastLocationUpdate: null,
       createdAt: new Date(), updatedAt: new Date(),
     });
 
@@ -37,7 +39,8 @@ export async function POST(request: NextRequest) {
       user: {
         id: result.insertedId.toString(), name, email, profession, company,
         bio: '', avatar: '', city: '', availability: 'Available',
-        latitude: null, longitude: null,
+        latitude: null, longitude: null, address: '',
+        currentLatitude: null, currentLongitude: null, currentCity: '',
       },
     });
   } catch (error) {

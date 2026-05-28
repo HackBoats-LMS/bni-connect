@@ -6,6 +6,7 @@ import type { NearbyMember, LocationCoords } from '@/lib/types';
 interface MapViewProps {
   userLocation: LocationCoords;
   members: NearbyMember[];
+  mapCenter?: LocationCoords;
 }
 
 const LeafletMap = dynamic(() => import('./leaflet-map'), {

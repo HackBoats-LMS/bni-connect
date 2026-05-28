@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
@@ -20,16 +20,33 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { useLocationStore } from '@/stores/use-location-store';
 import { Avatar } from '@/components/ui/avatar';
 import { MapView } from '@/components/map/map-view';
-import type { AvailabilityStatus } from '@/lib/types';
+import type { AvailabilityStatus, UserProfile } from '@/lib/types';
 
 export default function MyProfilePage() {
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
   const { coords } = useLocationStore();
 
+  const [memberCount, setMemberCount] = useState(0);
+  const [recentMembers, setRecentMembers] = useState<UserProfile[]>([]);
+
   useEffect(() => { 
     if (!isLoading && !user) router.push('/login'); 
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (user) {
+      fetch('/api/members')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.members) {
+            setMemberCount(d.members.length);
+            setRecentMembers(d.members.slice(0, 5));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
   if (isLoading || !user) {
     return (
@@ -39,14 +56,7 @@ export default function MyProfilePage() {
     );
   }
 
-  // Mock mutual connections avatars
-  const mutuals = [
-    'https://i.pravatar.cc/150?u=1',
-    'https://i.pravatar.cc/150?u=2',
-    'https://i.pravatar.cc/150?u=3',
-    'https://i.pravatar.cc/150?u=4',
-    'https://i.pravatar.cc/150?u=5',
-  ];
+
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20 font-sans">
@@ -135,7 +145,7 @@ export default function MyProfilePage() {
                 <Users size={18} />
               </div>
               <div>
-                <p className="text-[14px] font-bold text-gray-900">125+</p>
+                <p className="text-[14px] font-bold text-gray-900">{memberCount}</p>
                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Connections</p>
               </div>
             </div>
@@ -304,11 +314,22 @@ export default function MyProfilePage() {
                   className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-4"
                 >
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Location</h3>
-                  <p className="text-xs font-bold text-gray-700">{user.city || 'Bangalore, India'}</p>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-gray-700">{user.city || 'Bangalore, India'}</p>
+                    {user.address && (
+                      <p className="text-[10px] text-gray-400 font-semibold leading-normal">{user.address}</p>
+                    )}
+                  </div>
                   
                   {/* Leaflet map preview container */}
                   <div className="h-44 rounded-2xl overflow-hidden border border-gray-150">
-                    <MapView userLocation={coords} members={[]} />
+                    <MapView 
+                      userLocation={{ 
+                        latitude: user.latitude ?? coords.latitude, 
+                        longitude: user.longitude ?? coords.longitude 
+                      }} 
+                      members={[]} 
+                    />
                   </div>
                 </motion.div>
               )}
@@ -321,18 +342,22 @@ export default function MyProfilePage() {
                 className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-4"
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Connections (125)</h3>
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Connections ({memberCount})</h3>
                   <button onClick={() => router.push('/connections')} className="text-xs font-bold text-[#e62e3d] hover:underline cursor-pointer">View all</button>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="flex -space-x-2">
-                    {mutuals.map((src, i) => (
-                      <img key={i} src={src} alt="Mutual" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
+                    {recentMembers.map((m) => (
+                      <div key={m.id} className="relative">
+                        <Avatar name={m.name} avatar={m.avatar} size="sm" showStatus status={m.availability} />
+                      </div>
                     ))}
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
-                    +7
-                  </div>
+                  {memberCount > 5 && (
+                    <div className="w-8 h-8 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
+                      +{memberCount - 5}
+                    </div>
+                  )}
                 </div>
               </motion.div>
 

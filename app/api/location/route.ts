@@ -27,8 +27,23 @@ export async function POST(request: NextRequest) {
     }
 
     const users = await getUsersCollection();
-    const updateData: Record<string, unknown> = { latitude, longitude, lastLocationUpdate: new Date() };
-    if (city) updateData.city = city;
+    const currentUser = await users.findOne({ _id: new ObjectId(session.userId) });
+
+    const updateData: Record<string, unknown> = { 
+      currentLatitude: latitude, 
+      currentLongitude: longitude, 
+      lastLocationUpdate: new Date() 
+    };
+    if (city) {
+      updateData.currentCity = city;
+    }
+
+    // Fallback: If permanent business location is not yet set, initialize it
+    if (currentUser && (currentUser.latitude === null || currentUser.latitude === undefined)) {
+      updateData.latitude = latitude;
+      updateData.longitude = longitude;
+      if (city) updateData.city = city;
+    }
 
     await users.updateOne({ _id: new ObjectId(session.userId) }, { $set: updateData });
 

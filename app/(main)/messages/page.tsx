@@ -7,6 +7,7 @@ import { Search, Send, Image, Smile, Phone, Video, Info, Loader2, RefreshCw, Com
 import { useAuthStore } from '@/stores/use-auth-store';
 import { useLocationStore } from '@/stores/use-location-store';
 import { Avatar } from '@/components/ui/avatar';
+import type { NearbyMember } from '@/lib/types';
 
 interface Message {
   id: string;
@@ -57,7 +58,7 @@ export default function MessagesPage() {
         const res = await fetch(`/api/members?lat=${lat}&lng=${lng}&radius=100`);
         const data = await res.json();
         if (data.members) {
-          const list: ChatMember[] = data.members.map((m: any) => ({
+          const list: ChatMember[] = data.members.map((m: NearbyMember) => ({
             id: m.id,
             name: m.name,
             avatar: m.avatar,
@@ -98,7 +99,10 @@ export default function MessagesPage() {
   // Load messages for selected conversation (only once on switch, no background polling intervals)
   useEffect(() => {
     if (activeId) {
-      fetchMessages(activeId, true);
+      const timer = setTimeout(() => {
+        fetchMessages(activeId, true);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [activeId]);
 
@@ -226,7 +230,7 @@ export default function MessagesPage() {
               
               <div className="flex items-center gap-4 text-gray-400">
                 <button 
-                  onClick={() => fetchMessages(activeId, false)} 
+                  onClick={() => activeId && fetchMessages(activeId, false)} 
                   title="Sync Chat"
                   className="hover:text-gray-600 transition-colors cursor-pointer p-1 rounded-lg hover:bg-gray-100"
                 >
