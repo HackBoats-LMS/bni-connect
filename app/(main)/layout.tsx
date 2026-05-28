@@ -32,7 +32,7 @@ export default function MainLayout({
     router.push('/');
   };
 
-  const navItems = [
+  const navItems: { href: string; label: string; icon: typeof Compass; badge?: number; disabled?: boolean }[] = [
     { href: '/dashboard', label: 'Home', icon: Compass },
     { href: '/discover', label: 'Discover', icon: Map },
     { href: '/connections', label: 'Connections', icon: Users },

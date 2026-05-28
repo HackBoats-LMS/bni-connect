@@ -9,14 +9,18 @@ export async function PATCH(request: NextRequest) {
     if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { name, profession, company, bio, availability } = body;
+    const { name, profession, company, bio, availability, latitude, longitude, city, address } = body;
 
-    const updateData: Record<string, string | Date> = { updatedAt: new Date() };
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (name) updateData.name = name;
     if (profession) updateData.profession = profession;
     if (company) updateData.company = company;
     if (bio !== undefined) updateData.bio = bio;
     if (availability) updateData.availability = availability;
+    if (latitude !== undefined) updateData.latitude = latitude !== null ? Number(latitude) : null;
+    if (longitude !== undefined) updateData.longitude = longitude !== null ? Number(longitude) : null;
+    if (city !== undefined) updateData.city = city;
+    if (address !== undefined) updateData.address = address;
 
     const users = await getUsersCollection();
     await users.updateOne({ _id: new ObjectId(session.userId) }, { $set: updateData });
@@ -29,11 +33,16 @@ export async function PATCH(request: NextRequest) {
     return Response.json({
       success: true,
       user: user ? {
-        id: user._id.toString(), name: user.name, email: user.email,
-        profession: user.profession, company: user.company, bio: user.bio || '',
+        id: user._id.toString(), name: user.name || '', email: user.email || '',
+        profession: user.profession || '', company: user.company || '', bio: user.bio || '',
         avatar: user.avatar || '', city: user.city || '',
         availability: user.availability || 'Available',
-        latitude: user.latitude || null, longitude: user.longitude || null,
+        latitude: user.latitude != null ? Number(user.latitude) : null,
+        longitude: user.longitude != null ? Number(user.longitude) : null,
+        address: user.address || '',
+        currentLatitude: user.currentLatitude != null ? Number(user.currentLatitude) : null,
+        currentLongitude: user.currentLongitude != null ? Number(user.currentLongitude) : null,
+        currentCity: user.currentCity || '',
       } : null,
     });
   } catch (error) {

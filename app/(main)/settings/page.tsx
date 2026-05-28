@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Save, LogOut, Loader2, Check, Sparkles, User, Briefcase, Building2, AlignLeft } from 'lucide-react';
+import { ArrowLeft, Save, LogOut, Loader2, Check, Sparkles, User, Briefcase, Building2, AlignLeft, MapPin } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { useLocationStore } from '@/stores/use-location-store';
 import { Avatar } from '@/components/ui/avatar';
+import { LocationPickerView } from '@/components/map/location-picker-view';
 import type { AvailabilityStatus } from '@/lib/types';
 
 const statuses: AvailabilityStatus[] = ['Available', 'Busy', 'Traveling', 'Open to Meet'];
@@ -13,13 +15,79 @@ const statuses: AvailabilityStatus[] = ['Available', 'Busy', 'Traveling', 'Open 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, isLoading, setUser, logout } = useAuthStore();
-  const [form, setForm] = useState({ name: '', profession: '', company: '', bio: '', availability: '' });
+  const { coords, updateLocation } = useLocationStore();
+  const [form, setForm] = useState({ 
+    name: '', 
+    profession: '', 
+    company: '', 
+    bio: '', 
+    availability: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    city: '',
+    address: ''
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Trigger geolocation on mount if user doesn't have a pinned address
+  useEffect(() => {
+    if (user && (user.latitude === null || user.latitude === undefined)) {
+      updateLocation();
+    }
+  }, [user, updateLocation]);
+
+  // Sync geolocated coordinates to form if user doesn't have a base set yet
+  useEffect(() => {
+    if (user && (user.latitude === null || user.latitude === undefined) && coords) {
+      Promise.resolve().then(() => {
+        setForm(prev => {
+          // If not modified yet, or set to fallback, sync with GPS
+          if (prev.latitude === null || prev.latitude === 12.9352) {
+            return {
+              ...prev,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            };
+          }
+          return prev;
+        });
+      });
+    }
+  }, [coords, user]);
+
   useEffect(() => {
     if (!isLoading && !user) router.push('/login');
-    if (user) setForm({ name: user.name, profession: user.profession, company: user.company, bio: user.bio, availability: user.availability });
+    if (user) {
+      Promise.resolve().then(() => {
+        setForm(prev => {
+          if (
+            prev.name === user.name &&
+            prev.profession === user.profession &&
+            prev.company === user.company &&
+            prev.bio === user.bio &&
+            prev.availability === user.availability &&
+            prev.latitude === (user.latitude ?? coords?.latitude ?? null) &&
+            prev.longitude === (user.longitude ?? coords?.longitude ?? null) &&
+            prev.city === (user.city || '') &&
+            prev.address === (user.address || '')
+          ) {
+            return prev;
+          }
+          return {
+            name: user.name,
+            profession: user.profession,
+            company: user.company,
+            bio: user.bio,
+            availability: user.availability,
+            latitude: user.latitude ?? coords?.latitude ?? null,
+            longitude: user.longitude ?? coords?.longitude ?? null,
+            city: user.city || '',
+            address: user.address || '',
+          };
+        });
+      });
+    }
   }, [user, isLoading, router]);
 
   async function handleSave() {
@@ -85,7 +153,7 @@ export default function SettingsPage() {
                     <f.icon size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input 
                       type="text"
-                      value={form[f.key as keyof typeof form]} 
+                      value={form[f.key as 'name' | 'profession' | 'company'] || ''} 
                       onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} 
                       className="w-full px-4 py-2.5 pl-11 bg-gray-50/70 border border-gray-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-[#e62e3d] focus:ring-2 focus:ring-[#e62e3d]/15 transition-all text-gray-900" 
                     />
@@ -106,6 +174,24 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
+            </div>
+            
+            {/* Business Base Location Picker (Uber/Rapido style) */}
+            <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                <MapPin size={15} className="text-[#e62e3d]" />
+                Select Business Base Location
+              </h3>
+              <p className="text-xs text-gray-400 font-semibold leading-normal">
+                Other users will see this location as your primary office address on their maps. Move the map to position your office precisely at the center pin, or search.
+              </p>
+              <LocationPickerView 
+                initialLatitude={form.latitude}
+                initialLongitude={form.longitude}
+                onChange={({ latitude, longitude, city, address }) => {
+                  setForm(prev => ({ ...prev, latitude, longitude, city, address }));
+                }}
+              />
             </div>
 
             {/* Availability Status Selection Panel */}

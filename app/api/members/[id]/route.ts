@@ -24,11 +24,16 @@ export async function GET(
 
     return Response.json({
       user: {
-        id: user._id.toString(), name: user.name, email: user.email,
-        profession: user.profession, company: user.company, bio: user.bio || '',
+        id: user._id.toString(), name: user.name || '', email: user.email || '',
+        profession: user.profession || '', company: user.company || '', bio: user.bio || '',
         avatar: user.avatar || '', city: user.city || '',
         availability: user.availability || 'Available',
-        latitude: user.latitude || null, longitude: user.longitude || null,
+        latitude: user.latitude != null && !isNaN(Number(user.latitude)) ? Number(user.latitude) : null,
+        longitude: user.longitude != null && !isNaN(Number(user.longitude)) ? Number(user.longitude) : null,
+        address: user.address || '',
+        currentLatitude: user.currentLatitude != null && !isNaN(Number(user.currentLatitude)) ? Number(user.currentLatitude) : null,
+        currentLongitude: user.currentLongitude != null && !isNaN(Number(user.currentLongitude)) ? Number(user.currentLongitude) : null,
+        currentCity: user.currentCity || '',
       },
     });
   } catch (error) {

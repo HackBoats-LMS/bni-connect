@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/auth';
 
-// Simple server-side memory cache to avoid repetitive public API hits
 const cache = new Map<string, unknown>();
 
 async function fetchWithRetry(url: string, headers: HeadersInit, retries = 3, delay = 350): Promise<Response> {
@@ -28,30 +27,36 @@ export async function GET(request: NextRequest) {
     if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q');
-    if (!query) return Response.json({ error: 'Query required' }, { status: 400 });
+    const q = searchParams.get('q');
 
-    const cacheKey = query.trim().toLowerCase();
+    if (!q) {
+      return Response.json({ error: 'Search query is required' }, { status: 400 });
+    }
+
+    const cacheKey = q.trim().toLowerCase();
     if (cache.has(cacheKey)) {
       return Response.json(cache.get(cacheKey));
     }
 
-    const res = await fetchWithRetry(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
-      { 'User-Agent': 'BNI-Connect-MVP' },
+    const response = await fetchWithRetry(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`,
+      {
+        'User-Agent': 'BNI-Connect-Application-Server/1.0 (contact@bni-connect.local)',
+        'Accept-Language': 'en',
+      },
       3,
       350
     );
 
-    if (!res.ok) {
-      return Response.json({ error: 'Failed to search location' }, { status: res.status });
+    if (!response.ok) {
+      return Response.json({ error: 'Search geocoding service error' }, { status: response.status });
     }
 
-    const data = await res.json();
+    const data = await response.json();
     cache.set(cacheKey, data);
     return Response.json(data);
   } catch (error) {
-    console.error('Location search error:', error);
+    console.error('Search geocode proxy error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

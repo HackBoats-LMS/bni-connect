@@ -12,6 +12,10 @@ export interface UserProfile {
   availability: AvailabilityStatus;
   latitude: number | null;
   longitude: number | null;
+  address?: string;
+  currentLatitude?: number | null;
+  currentLongitude?: number | null;
+  currentCity?: string | null;
   distance?: number;
 }
 

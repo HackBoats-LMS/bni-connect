@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import type { LocationCoords } from '@/lib/types';
+import type { LocationCoords, UserProfile } from '@/lib/types';
 
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'error';
 
+// Initial state starts as null to avoid flashing incorrect default locations
 interface LocationState {
   coords: LocationCoords | null;
   city: string | null;
@@ -14,6 +15,7 @@ interface LocationState {
   setError: (error: string | null) => void;
   requestLocation: () => void;
   updateLocation: () => void;
+  initializeFromUser: (user: UserProfile) => void;
 }
 
 export const useLocationStore = create<LocationState>((set, get) => ({
@@ -34,6 +36,7 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       return;
     }
 
+    // Set isLocating but DON'T null out coords — keep the map visible with current position
     set({ status: 'requesting', isLocating: true });
 
     navigator.geolocation.getCurrentPosition(
@@ -60,15 +63,11 @@ export const useLocationStore = create<LocationState>((set, get) => ({
           set({ isLocating: false });
         }
       },
-      (err) => {
-        // Fallback to default location (Koramangala, Bangalore) so the map doesn't get stuck loading forever
-        const fallbackCoords = {
-          latitude: 12.9352,
-          longitude: 77.6245,
-        };
+      () => {
+        // Fallback to default location (Koramangala, Bangalore)
         set({ 
-          coords: fallbackCoords, 
-          city: 'Koramangala, Bangalore', 
+          coords: DEFAULT_COORDS, 
+          city: DEFAULT_CITY, 
           status: 'granted', 
           error: null, 
           isLocating: false 
@@ -76,5 +75,18 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       },
       { enableHighAccuracy: true, timeout: 5000 }
     );
+  },
+  initializeFromUser: (user) => {
+    if (!user) return;
+    const lat = user.currentLatitude ?? user.latitude;
+    const lng = user.currentLongitude ?? user.longitude;
+    const city = user.currentCity || user.city;
+    if (lat !== null && lng !== null && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+      set({
+        coords: { latitude: Number(lat), longitude: Number(lng) },
+        city: city || 'Your Location',
+        status: 'granted'
+      });
+    }
   }
 }));

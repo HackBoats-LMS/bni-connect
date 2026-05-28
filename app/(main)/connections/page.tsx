@@ -1,63 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Search, MessageSquare, UserCheck, UserPlus, Filter, ShieldCheck, Mail, MapPin } from 'lucide-react';
+import { Search, MessageSquare, UserCheck, UserPlus, Filter, MapPin, Loader2 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
-
-// Mock connections list
-const mockConnections = [
-  {
-    id: '1',
-    name: 'Rohit Sharma',
-    profession: 'Entrepreneur',
-    company: 'TechNova Solutions',
-    city: 'Koramangala, Bangalore',
-    avatar: 'https://i.pravatar.cc/150?u=7',
-    availability: 'Available',
-    connectedSince: 'Connected 2 days ago',
-  },
-  {
-    id: '2',
-    name: 'Priya Nair',
-    profession: 'Marketing Consultant',
-    company: 'BrandLift Media',
-    city: 'Indiranagar, Bangalore',
-    avatar: 'https://i.pravatar.cc/150?u=9',
-    availability: 'Open to Meet',
-    connectedSince: 'Connected 1 week ago',
-  },
-  {
-    id: '4',
-    name: 'Neha Verma',
-    profession: 'UX Designer',
-    company: 'Design Studio',
-    city: 'HSR Layout, Bangalore',
-    avatar: 'https://i.pravatar.cc/150?u=11',
-    availability: 'Available',
-    connectedSince: 'Connected 2 weeks ago',
-  },
-  {
-    id: '5',
-    name: 'Vikram Singh',
-    profession: 'Investor',
-    company: 'Skyline Ventures',
-    city: 'BTM Layout, Bangalore',
-    avatar: 'https://i.pravatar.cc/150?u=18',
-    availability: 'Open to Meet',
-    connectedSince: 'Connected 1 month ago',
-  }
-];
+import type { NearbyMember } from '@/lib/types';
 
 export default function ConnectionsPage() {
+  const [connections, setConnections] = useState<NearbyMember[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  
-  const filtered = mockConnections.filter(c => 
+
+  useEffect(() => {
+    async function fetchConnections() {
+      try {
+        const res = await fetch('/api/members');
+        const data = await res.json();
+        if (data.members) {
+          setConnections(data.members);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchConnections();
+  }, []);
+
+  const filtered = connections.filter(c => 
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.profession.toLowerCase().includes(search.toLowerCase()) ||
     c.company.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
+        <Loader2 size={32} className="animate-spin text-[#e62e3d]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-6 lg:p-8 font-sans">
@@ -71,7 +55,7 @@ export default function ConnectionsPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Your Network</h1>
-              <p className="text-xs text-gray-500 font-semibold mt-0.5">{mockConnections.length} active connections</p>
+              <p className="text-xs text-gray-500 font-semibold mt-0.5">{connections.length} active connections</p>
             </div>
           </div>
           <button className="flex items-center gap-2 px-4 py-2.5 bg-[#e62e3d] hover:bg-[#d02432] text-white text-xs font-bold rounded-xl active:scale-[0.98] transition-all cursor-pointer">
@@ -117,14 +101,14 @@ export default function ConnectionsPage() {
                     
                     <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-2">
                       <MapPin size={12} className="shrink-0 text-gray-300" />
-                      <span className="truncate">{c.city}</span>
+                      <span className="truncate">{c.city || 'Bangalore, India'}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    {c.connectedSince}
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                    {c.availability}
                   </span>
                   <div className="flex items-center gap-2">
                     <Link 
