@@ -12,15 +12,65 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Dark mode disabled until full tailwind dark mode support is implemented */
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ============================================================
+   Leaflet + Tailwind v4 Compatibility Fixes
+   
+   Tailwind v4's preflight resets break Leaflet in several ways:
+   1. `svg { display: block }` breaks Leaflet's inline SVG overlays
+   2. `border: 0 solid` on * removes Leaflet control borders
+   3. `img { max-width: 100%; height: auto }` breaks tile sizing
+   
+   These overrides restore Leaflet's expected CSS behavior.
+   ============================================================ */
+
+/* Restore SVG display inside Leaflet (Tailwind v4 sets svg to display:block) */
+.leaflet-container svg {
+  display: inline !important;
+}
+
+/* Restore image sizing inside Leaflet (Tailwind v4 constrains images) */
+.leaflet-container img {
+  max-width: none !important;
+  height: auto;
+}
+
+/* Ensure Leaflet markers are NEVER affected by external CSS transitions.
+   This is critical: Leaflet positions markers via inline transform: translate3d().
+   Any CSS transition on transform will cause markers to animate to wrong positions. */
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  transition: none !important;
+}
+
+/* Hover effect on the INNER avatar element only (never the marker wrapper) */
+.leaflet-avatar-marker .avatar-inner {
+  transition: transform 0.2s;
+}
+.leaflet-avatar-marker .avatar-inner:hover {
+  transform: scale(1.15);
+}
+
+/* Leaflet popup should never trigger map panning animation */
+.leaflet-popup {
+  transition: none !important;
+}
+
+/* Lift Leaflet zoom controls above the bottom navigation bar on mobile */
+@media (max-width: 1024px) {
+  .leaflet-bottom.leaflet-right {
+    bottom: 120px !important; 
+  }
+}
+
+/* Hide bottom nav globally when in an active chat on mobile */
+body.hide-bottom-nav .mobile-bottom-nav-container {
+  display: none !important;
 }

@@ -1,8 +1,11 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const secretKey = process.env.JWT_SECRET || 'bni-connect-secret-key-change-in-production';
-const encodedKey = new TextEncoder().encode(secretKey);
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+
+const encodedKey = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function createToken(userId: string) {
   return new SignJWT({ userId })

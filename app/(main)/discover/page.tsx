@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map as MapIcon, List, Loader2, RefreshCw, Users, MapPin, Compass, Search } from 'lucide-react';
+import { Map as MapIcon, List, Loader2, RefreshCw, Users, MapPin, Compass, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { useLocationStore } from '@/stores/use-location-store';
 import { MapView } from '@/components/map/map-view';
@@ -26,6 +26,8 @@ export default function DiscoverPage() {
   const [searchingLocation, setSearchingLocation] = useState(false);
   const [searchCenter, setSearchCenter] = useState<{latitude: number; longitude: number} | null>(null);
   const [searchCity, setSearchCity] = useState<string | null>(null);
+  const [mapFocus, setMapFocus] = useState<{latitude: number; longitude: number} | null>(null);
+  const [isListExpanded, setIsListExpanded] = useState(true);
 
   const handleSearchLocation = async () => {
     if (!searchQuery.trim()) return;
@@ -40,6 +42,7 @@ export default function DiscoverPage() {
         
         if (!isNaN(latVal) && !isNaN(lngVal)) {
           setSearchCenter({ latitude: latVal, longitude: lngVal });
+          setMapFocus({ latitude: latVal, longitude: lngVal });
           const cityPart = place.address?.city || place.address?.town || place.display_name.split(',')[0];
           setSearchCity(cityPart);
           setSearchQuery('');
@@ -55,6 +58,7 @@ export default function DiscoverPage() {
   const handleBackToMyLocation = () => {
     setSearchCenter(null);
     setSearchCity(null);
+    setMapFocus(null);
   };
 
   const isValidCoord = (val: unknown): val is number => {
@@ -66,8 +70,10 @@ export default function DiscoverPage() {
     const lng = member.longitude;
     
     if (isValidCoord(lat) && isValidCoord(lng)) {
-      setSearchCenter({ latitude: lat, longitude: lng });
-      setSearchCity(member.company || member.name);
+      // Only pan the map — do NOT set searchCenter (which would trigger a refetch)
+      setMapFocus({ latitude: lat, longitude: lng });
+      // Close the list so the map is fully visible
+      setIsListExpanded(false);
     }
   };
 
@@ -128,42 +134,25 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-5rem)] bg-gray-50/50 flex flex-col">
+    <div className="h-[calc(100vh-5rem)] bg-white flex flex-col">
       
-      {/* Mobile Top Header (hidden on desktop) */}
-      <header className="bg-white border-b border-gray-150 px-6 py-4 sticky top-0 z-30 lg:hidden">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Discover</h1>
-            <p className="text-xs text-gray-500 font-medium mt-0.5">{city || 'Finding location...'}</p>
-          </div>
-          
-          <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-full border border-gray-200">
-            <button onClick={() => setView('map')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${view === 'map' ? 'bg-white text-[#e62e3d] shadow-sm' : 'text-gray-500'}`}>
-              <MapIcon size={14} /> Map
-            </button>
-            <button onClick={() => setView('list')} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${view === 'list' ? 'bg-white text-[#e62e3d] shadow-sm' : 'text-gray-500'}`}>
-              <List size={14} /> List
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* Header removed as it is now in layout.tsx */}
 
       {/* Main Responsive Dashboard Container */}
-      <div className="flex-1 p-4 lg:p-8">
+      <div className="flex-1 flex flex-col p-0">
         
-        {/* DESKTOP SPLIT VIEW: Map (Left) + Sidebar (Right) */}
-        <div className="hidden lg:grid lg:grid-cols-12 gap-8 h-[calc(100vh-10rem)] max-w-[1300px] mx-auto w-full">
+        {/* DESKTOP IMMERSIVE VIEW: Full Map + Overlay Sidebar */}
+        <div className="hidden lg:flex relative h-[calc(100vh-5rem)] w-full bg-white overflow-hidden shadow-sm">
           
-          {/* Left Column - Large Map View */}
-          <div className="lg:col-span-8 bg-white border border-gray-200 rounded-3xl overflow-hidden relative flex flex-col shadow-sm">
+          {/* Full Width Map Area */}
+          <div className="flex-1 w-full h-full relative flex flex-col ">
             {!coords || isLocating ? (
               <MapSkeleton />
             ) : (
               <div className="w-full h-full relative">
                 {/* Floating Search Bar over Map */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-2rem)] max-w-md">
-                  <div className="relative flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl p-2.5 gap-2.5">
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-2rem)] max-w-md max-h-[calc(100vh-8rem)] flex flex-col pointer-events-none">
+                  <div className="relative flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl p-2.5 gap-2.5 pointer-events-auto shrink-0">
                     <div className="relative flex items-center px-1">
                       <Search size={16} className="text-gray-400 shrink-0 mr-2.5" />
                       <input 
@@ -206,23 +195,86 @@ export default function DiscoverPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Embedded Nearby Businesses List (Dropdown style) */}
+                  {filteredMembers.length > 0 && (
+                    <div className="mt-2 bg-white/95 backdrop-blur-md border border-gray-200/60 rounded-2xl p-3 shadow-xl pointer-events-auto flex flex-col min-h-0 flex-1 transition-all duration-300">
+                      <div 
+                        className="flex items-center justify-between shrink-0 px-1 cursor-pointer"
+                        onClick={() => setIsListExpanded(!isListExpanded)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-[13px] text-gray-900 tracking-tight select-none">Nearby Businesses</h3>
+                          <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full select-none">{filteredMembers.length} found</span>
+                        </div>
+                        <button className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100">
+                          {isListExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                      </div>
+
+                      {isListExpanded && (
+                        <div className="overflow-y-auto space-y-2 pr-1 shrink-1 min-h-0 custom-scrollbar mt-3">
+                        {loading ? (
+                          <div className="space-y-4 py-4">
+                            {[...Array(3)].map((_, i) => (
+                              <div key={i} className="flex items-center gap-3 animate-pulse px-1">
+                                <div className="w-8 h-8 bg-gray-150 rounded-full shrink-0"></div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-2.5 bg-gray-150 rounded w-1/2"></div>
+                                  <div className="h-2 bg-gray-100 rounded w-3/4"></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          filteredMembers.map((m) => {
+                            const statusColor = getStatusColor(m.availability);
+                            return (
+                              <div 
+                                key={m.id} 
+                                onClick={() => handleSeeOnMap(m)}
+                                className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-50/80 transition-colors border border-transparent hover:border-gray-100 cursor-pointer group"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <Avatar name={m.company || m.name} avatar={m.avatar} size="sm" showStatus status={m.availability} />
+                                  <div className="min-w-0">
+                                    <h4 className="font-bold text-[13px] text-gray-900 truncate group-hover:text-[#e62e3d] transition-colors">{m.company || 'Unnamed Business'}</h4>
+                                    <p className="text-[10px] text-gray-500 font-semibold truncate mt-0.5">{m.name} • {m.profession}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0 ml-2">
+                                  <span className="text-[10px] text-gray-400 font-semibold block">{m.distance !== undefined ? `${m.distance.toFixed(1)} km` : ''}</span>
+                                  <span className="text-[9px] font-bold block mt-1 px-1.5 py-0.5 rounded-full inline-block" style={{ color: statusColor, backgroundColor: `${statusColor}15` }}>
+                                    {m.availability}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <MapView userLocation={coords} members={filteredMembers} mapCenter={searchCenter ?? undefined} />
+                <MapView userLocation={coords} members={filteredMembers} mapCenter={mapFocus ?? searchCenter ?? undefined} />
                 
                 {/* Floating location card (matches bottom-left of screenshot) */}
                 <div className="absolute bottom-6 left-6 z-[1000] bg-white border border-gray-150 rounded-2xl p-4 shadow-xl max-w-[280px] select-none">
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{searchCity ? 'Viewing area' : 'You are in'}</span>
                   <div className="flex items-center justify-between gap-4 mt-0.5">
                     <p className="text-sm font-bold text-gray-900 truncate">{searchCity || city || 'Unknown location'}</p>
-                    {searchCity && (
-                      <button 
-                        onClick={handleBackToMyLocation}
-                        className="text-[10px] font-bold text-[#e62e3d] hover:underline cursor-pointer whitespace-nowrap"
-                      >
-                        Back to me
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => {
+                        handleBackToMyLocation();
+                        // Also center map back to user coords using mapFocus
+                        if (coords) setMapFocus(coords);
+                      }}
+                      className="text-[10px] font-bold text-[#e62e3d] hover:underline cursor-pointer whitespace-nowrap bg-[#fce9ea] px-2 py-1 rounded-md"
+                    >
+                      My Location
+                    </button>
                   </div>
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                     <span className="w-2 h-2 rounded-full bg-[#e62e3d] animate-pulse"></span>
@@ -231,106 +283,22 @@ export default function DiscoverPage() {
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Right Column - Nearby Members Sidebar */}
-          <div className="lg:col-span-4 flex flex-col justify-between h-full space-y-6">
-            
-            {/* Nearby Members Panel */}
-            <div className="flex-1 bg-white border border-gray-200 rounded-3xl p-6 flex flex-col min-h-0 shadow-sm">
-              <div className="flex items-center justify-between mb-5 shrink-0">
-                <h3 className="font-bold text-[16px] text-gray-900 tracking-tight">Nearby Businesses</h3>
-                <button onClick={() => setView('list')} className="text-xs font-bold text-[#e62e3d] hover:underline cursor-pointer">
-                  View All
-                </button>
-              </div>
-
-              {/* Members Scroll List */}
-              <div className="flex-1 overflow-y-auto space-y-4 pr-1.5">
-                {loading ? (
-                  <div className="space-y-4 py-4">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-3 animate-pulse">
-                        <div className="w-10 h-10 bg-gray-150 rounded-full"></div>
-                        <div className="flex-1 space-y-2">
-                          <div className="h-3 bg-gray-150 rounded w-1/2"></div>
-                          <div className="h-2 bg-gray-100 rounded w-3/4"></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : filteredMembers.length > 0 ? (
-                  filteredMembers.slice(0, 5).map((m) => {
-                    const statusColor = getStatusColor(m.availability);
-                    return (
-                      <div 
-                        key={m.id} 
-                        onClick={() => handleSeeOnMap(m)}
-                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50/80 transition-colors border border-transparent hover:border-gray-100 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <Avatar name={m.company || m.name} avatar={m.avatar} size="md" showStatus status={m.availability} />
-                          <div className="min-w-0">
-                            <h4 className="font-bold text-[14px] text-gray-900 truncate">{m.company || 'Unnamed Business'}</h4>
-                            <p className="text-[11px] text-gray-500 font-semibold truncate mt-0.5">{m.name}</p>
-                            <p className="text-[10px] text-gray-400 font-medium truncate">{m.profession}</p>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSeeOnMap(m);
-                              }}
-                              className="text-[10px] text-[#e62e3d] hover:text-[#d02432] font-bold hover:underline cursor-pointer block mt-1 text-left"
-                            >
-                              See on Map
-                            </button>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className="text-[11px] text-gray-400 font-semibold block">{m.distance !== undefined ? `${m.distance.toFixed(1)} km` : ''}</span>
-                          <span className="text-[10px] font-bold block mt-1" style={{ color: statusColor }}>
-                            {m.availability}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-xs text-gray-400 font-semibold">No businesses nearby</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Bottom: Enable Location Card (Matches screenshot layout) */}
-            <div className="bg-white border border-gray-200 rounded-3xl p-6 text-center shadow-sm relative overflow-hidden shrink-0 select-none">
-              <div className="w-10 h-10 bg-[#e62e3d]/10 text-[#e62e3d] rounded-full flex items-center justify-center mx-auto mb-3">
-                <MapPin size={18} />
-              </div>
-              <h4 className="text-sm font-bold text-gray-900 mb-1">Enable precise location</h4>
-              <p className="text-xs text-gray-500 leading-normal mb-4">Allow precise location to see more relevant nearby businesses.</p>
-              <button 
-                onClick={updateLocation} 
-                disabled={isLocating}
-                className="w-full py-2.5 bg-[#e62e3d] hover:bg-[#d02432] text-white text-xs font-bold rounded-xl active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60"
-              >
-                {isLocating ? 'Updating...' : 'Enable Location'}
-              </button>
-            </div>
 
           </div>
-
         </div>
 
+
         {/* MOBILE VIEW Outlet (stacked tabs) */}
-        <div className="lg:hidden w-full max-w-lg mx-auto">
+        <div className="lg:hidden w-full flex-1 flex flex-col relative z-0">
           {!coords || isLocating ? (
-            view === 'map' ? <MapSkeleton /> : <MemberListSkeleton />
+            <div className="p-4 flex-1">
+              {view === 'map' ? <MapSkeleton /> : <MemberListSkeleton />}
+            </div>
           ) : (
             <AnimatePresence mode="wait">
               {view === 'map' ? (
-                <motion.div key="map" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="h-[60vh] rounded-2xl border border-gray-200 overflow-hidden relative shadow-sm">
+                <motion.div key="map" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full relative h-[calc(100dvh-4rem)]">
                   {/* Floating Search Bar over Map on Mobile */}
                   <div className="absolute top-4 left-4 right-4 z-[1000]">
                     <div className="relative flex items-center bg-white border border-gray-200 rounded-2xl shadow-xl px-3.5 py-2.5 gap-2.5">
@@ -358,10 +326,10 @@ export default function DiscoverPage() {
                     </div>
                   </div>
 
-                  <MapView userLocation={coords} members={filteredMembers} mapCenter={searchCenter ?? undefined} />
+                  <MapView userLocation={coords} members={filteredMembers} mapCenter={mapFocus ?? searchCenter ?? undefined} />
                 </motion.div>
               ) : (
-                <motion.div key="list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+                <motion.div key="list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4 p-4 max-w-lg mx-auto w-full pb-32">
                   {/* Search Bar for Mobile List view */}
                   <div className="relative flex items-center bg-white border border-gray-200 rounded-2xl shadow-sm px-3.5 py-2.5 gap-2.5">
                     <Search size={16} className="text-gray-400 shrink-0" />
@@ -398,6 +366,18 @@ export default function DiscoverPage() {
           )}
         </div>
 
+      </div>
+
+      {/* Floating Toggle Pill (Mobile only) */}
+      <div className="lg:hidden fixed bottom-28 left-1/2 -translate-x-1/2 z-40">
+        <div className="flex items-center bg-white/95 backdrop-blur-xl p-1.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-200/80">
+          <button onClick={() => setView('map')} className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold transition-all cursor-pointer ${view === 'map' ? 'bg-[#e62e3d] text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>
+            <MapIcon size={16} /> Map
+          </button>
+          <button onClick={() => setView('list')} className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold transition-all cursor-pointer ${view === 'list' ? 'bg-[#e62e3d] text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>
+            <List size={16} /> List
+          </button>
+        </div>
       </div>
 
     </div>

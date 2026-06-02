@@ -1,5 +1,7 @@
 'use client';
 
+import React, { Suspense } from 'react';
+
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -12,11 +14,15 @@ import {
   LogOut, 
   Search, 
   SlidersHorizontal, 
-  Bell 
+  Bell,
+  MapPin
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { useLocationStore } from '@/stores/use-location-store';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { Avatar } from '@/components/ui/avatar';
+import { SearchBar } from '@/components/layout/search-bar';
+import { NotificationBell } from '@/components/layout/notification-bell';
 
 export default function MainLayout({
   children,
@@ -26,6 +32,7 @@ export default function MainLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { isLocating, updateLocation } = useLocationStore();
 
   const handleLogout = () => {
     logout();
@@ -102,16 +109,19 @@ export default function MainLayout({
         </div>
 
         <div className="space-y-6">
-          {/* Grow Your Network Invite Card */}
+          {/* Enable Precise Location Card */}
           <div className="bg-[#fce9ea]/50 border border-[#fce9ea]/30 rounded-2xl p-5 text-center relative overflow-hidden">
-            <div className="absolute -top-6 -right-6 w-16 h-16 bg-[#e62e3d]/10 rounded-full blur-xl"></div>
             <div className="w-10 h-10 bg-[#e62e3d]/10 text-[#e62e3d] rounded-full flex items-center justify-center mx-auto mb-3">
-              <Users size={18} />
+              <MapPin size={18} />
             </div>
-            <h4 className="text-xs font-bold text-gray-900 mb-1">Grow your network</h4>
-            <p className="text-[10px] text-gray-500 leading-normal mb-3.5">Invite your friends and connect with even more professionals.</p>
-            <button className="w-full py-2 bg-[#e62e3d] text-white text-[11px] font-bold rounded-lg hover:bg-[#d02432] active:scale-[0.98] transition-all">
-              Invite Friends
+            <h4 className="text-xs font-bold text-gray-900 mb-1">Enable precise location</h4>
+            <p className="text-[10px] text-gray-500 leading-normal mb-3.5">Allow precise location to see more relevant nearby businesses.</p>
+            <button 
+              onClick={updateLocation} 
+              disabled={isLocating}
+              className="w-full py-2 bg-[#e62e3d] text-white text-[11px] font-bold rounded-lg hover:bg-[#d02432] active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+            >
+              {isLocating ? 'Locating...' : 'Enable Location'}
             </button>
           </div>
 
@@ -137,15 +147,7 @@ export default function MainLayout({
           {/* Search, Notifications & Profile dropdown */}
           <div className="flex items-center gap-6">
             
-            {/* Search Input */}
-            <div className="relative w-80">
-              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search by name, profession, company or keyword..."
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:bg-white focus:border-[#e62e3d] focus:ring-2 focus:ring-[#e62e3d]/15 transition-all text-gray-900"
-              />
-            </div>
+            <SearchBar />
 
             {/* Filters Button */}
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
@@ -153,11 +155,7 @@ export default function MainLayout({
               <span>Filters</span>
             </button>
 
-            {/* Notification Bell */}
-            <button className="relative w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors cursor-pointer">
-              <Bell size={18} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#e62e3d] rounded-full"></span>
-            </button>
+            <NotificationBell />
 
             {/* User Profile dropdown avatar */}
             {user && (
@@ -169,6 +167,19 @@ export default function MainLayout({
           </div>
         </header>
 
+        {/* Top Header Bar for Mobile */}
+        <header className="flex lg:hidden h-16 border-b border-gray-200 bg-white sticky top-0 z-30 px-4 items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900 tracking-tight">{getPageTitle()}</h2>
+          <div className="flex items-center gap-3">
+            <button className="w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-50 transition-colors">
+              <Search size={18} />
+            </button>
+            <div className="scale-90 origin-right">
+              <NotificationBell />
+            </div>
+          </div>
+        </header>
+
         {/* Content Render Outlet */}
         <main className="flex-1 pb-safe min-h-0 relative">
           {children}
@@ -177,8 +188,10 @@ export default function MainLayout({
       </div>
 
       {/* Bottom Nav for Mobile */}
-      <div className="lg:hidden">
-        <BottomNav />
+      <div className="lg:hidden mobile-bottom-nav-container transition-opacity duration-300">
+        <Suspense fallback={null}>
+          <BottomNav />
+        </Suspense>
       </div>
 
     </div>

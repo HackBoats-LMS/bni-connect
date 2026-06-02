@@ -1,25 +1,49 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { MapPin, Compass, Loader2, ArrowRight, Sparkles, Users, Eye, Zap } from 'lucide-react';
+import { MapPin, Compass, Loader2, ArrowRight, Sparkles, Users, Eye, Zap, Navigation } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { useLocationStore } from '@/stores/use-location-store';
 import { Avatar } from '@/components/ui/avatar';
 import { StatusBadge } from '@/components/ui/status-badge';
-import type { AvailabilityStatus } from '@/lib/types';
+import type { AvailabilityStatus, NearbyMember } from '@/lib/types';
+import { getInitials, getAvatarColor } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
   const { coords, city, isLocating, updateLocation } = useLocationStore();
+  const [members, setMembers] = useState<NearbyMember[]>([]);
+  const [isFetchingMembers, setIsFetchingMembers] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) router.push('/login');
     if (user && !coords && !isLocating) updateLocation();
   }, [user, isLoading, coords, isLocating, updateLocation, router]);
+
+  useEffect(() => {
+    async function fetchMembers() {
+      if (!coords) return;
+      setIsFetchingMembers(true);
+      try {
+        const res = await fetch(`/api/members?lat=${coords.latitude}&lng=${coords.longitude}&radius=50`);
+        const data = await res.json();
+        if (data.members) {
+          setMembers(data.members);
+        }
+      } catch (e) {
+        console.error('Failed to fetch dashboard members', e);
+      } finally {
+        setIsFetchingMembers(false);
+      }
+    }
+    fetchMembers();
+  }, [coords]);
+
+  const activeTravelersCount = members.filter(m => m.currentCity && m.city && m.currentCity.toLowerCase() !== m.city.toLowerCase()).length;
 
   if (isLoading || !user) {
     return (
@@ -40,27 +64,7 @@ export default function DashboardPage() {
         <div className="absolute right-0 top-0 w-[600px] h-[500px] opacity-[0.03] bg-[radial-gradient(circle,#ef4444_2px,transparent_2px)] bg-[length:16px_16px]" style={{ maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 70%)' }}></div>
       </div>
 
-      {/* Header */}
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-5 sticky top-0 z-30 lg:hidden">
-        <div className="max-w-[1200px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="6" r="3.5" fill="#ef4444" />
-              <circle cx="26" cy="11.5" r="3.5" fill="#ef4444" />
-              <circle cx="26" cy="22.5" r="3.5" fill="#ef4444" />
-              <circle cx="16" cy="28" r="3.5" fill="#ef4444" />
-              <circle cx="6" cy="22.5" r="3.5" fill="#ef4444" />
-              <circle cx="6" cy="11.5" r="3.5" fill="#ef4444" />
-              <circle cx="16" cy="17" r="4.5" fill="#ef4444" />
-            </svg>
-            <span className="text-[18px] font-bold tracking-tight text-gray-900">BNI CONNECT</span>
-          </div>
-          <Link href="/profile" className="hover:scale-105 transition-transform">
-            <Avatar name={user.name} avatar={user.avatar} size="md" showStatus status={user.availability} />
-          </Link>
-        </div>
-      </header>
+      {/* Header removed as it is now in layout.tsx */}
 
       <main className="px-6 py-8 relative z-10">
         <div className="max-w-[1200px] mx-auto">
@@ -151,40 +155,71 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="grid grid-cols-2 gap-4"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
               >
                 <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
                   <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 mb-4">
                     <Users size={18} className="text-gray-600" />
                   </div>
                   <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Nearby Users</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">24</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                    {isFetchingMembers ? <Loader2 size={16} className="animate-spin inline-block text-gray-400" /> : members.length}
+                  </h3>
                 </div>
                 
                 <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
                   <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 mb-4">
-                    <Eye size={18} className="text-gray-600" />
+                    <Navigation size={18} className="text-gray-600" />
                   </div>
-                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Views This Week</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">118</h3>
+                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Active Travelers</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                    {isFetchingMembers ? <Loader2 size={16} className="animate-spin inline-block text-gray-400" /> : activeTravelersCount}
+                  </h3>
                 </div>
               </motion.div>
 
-              {/* Networking Tip */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-gray-50 rounded-2xl border border-gray-200/40 p-5 flex gap-3.5 items-start"
-              >
-                <div className="w-8 h-8 rounded-lg bg-[#fce9ea] text-[#e62e3d] flex items-center justify-center shrink-0 mt-0.5">
-                  <Zap size={15} strokeWidth={2.5} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900">Networking Tip</h4>
-                  <p className="text-gray-500 text-xs mt-1 leading-relaxed">Keep your availability status updated when you are open for meeting local professionals for lunch or coffee.</p>
-                </div>
-              </motion.div>
+              {/* Who's Around You Widget */}
+              {members.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <div className="flex items-center justify-between mb-3 mt-2">
+                    <h3 className="text-sm font-bold text-gray-900">Who's Around You</h3>
+                    <Link href="/discover" className="text-xs font-bold text-[#e62e3d] hover:underline">View Map</Link>
+                  </div>
+                  
+                  <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
+                    {members.slice(0, 5).map((m) => (
+                      <Link href={`/discover?focus=${m.id}`} key={m.id} className="snap-start shrink-0 w-[180px] bg-white rounded-2xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center group cursor-pointer">
+                        <div className="mb-3">
+                          <Avatar 
+                            avatar={m.avatar || undefined} 
+                            name={m.name} 
+                            size="lg" 
+                          />
+                        </div>
+                        <h4 className="font-bold text-gray-900 text-sm truncate w-full">{m.name}</h4>
+                        <p className="text-xs text-gray-500 font-medium truncate w-full mt-0.5">{m.profession}</p>
+                        
+                        <div className="mt-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-md w-full">
+                          {m.city || 'Unknown'}
+                        </div>
+                      </Link>
+                    ))}
+                    
+                    {members.length > 5 && (
+                      <Link href="/discover" className="snap-start shrink-0 w-[120px] bg-gray-50 rounded-2xl border border-dashed border-gray-300 p-4 flex flex-col items-center justify-center text-center hover:bg-gray-100 transition-colors cursor-pointer">
+                        <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center mb-2">
+                          <ArrowRight size={14} className="text-[#e62e3d]" />
+                        </div>
+                        <span className="text-xs font-bold text-gray-600">View {members.length - 5} more</span>
+                      </Link>
+                    )}
+                  </div>
+                </motion.div>
+              )}
             </div>
 
           </div>

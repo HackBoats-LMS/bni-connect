@@ -20,7 +20,14 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { useLocationStore } from '@/stores/use-location-store';
 import { Avatar } from '@/components/ui/avatar';
 import { MapView } from '@/components/map/map-view';
+import dynamic from 'next/dynamic';
 import type { AvailabilityStatus, UserProfile } from '@/lib/types';
+
+// Dynamically import the Leaflet modal so it doesn't crash on the server (window is not defined)
+const LocationPickerModal = dynamic(
+  () => import('@/components/map/location-picker-modal').then((mod) => mod.LocationPickerModal),
+  { ssr: false }
+);
 
 export default function MyProfilePage() {
   const router = useRouter();
@@ -29,6 +36,7 @@ export default function MyProfilePage() {
 
   const [memberCount, setMemberCount] = useState(0);
   const [recentMembers, setRecentMembers] = useState<UserProfile[]>([]);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
   useEffect(() => { 
     if (!isLoading && !user) router.push('/login'); 
@@ -62,7 +70,7 @@ export default function MyProfilePage() {
     <div className="min-h-screen bg-gray-50/50 pb-20 font-sans">
       
       {/* Top Bar Navigation */}
-      <div className="bg-white border-b border-gray-150 px-6 py-4 sticky top-20 lg:top-20 z-20">
+      <div className="bg-white border-b border-gray-150 px-6 py-4 sticky top-16 lg:top-20 z-20">
         <div className="max-w-[1100px] mx-auto flex items-center justify-between">
           <h1 className="text-sm font-bold text-gray-800">My Profile</h1>
           <button 
@@ -322,15 +330,34 @@ export default function MyProfilePage() {
                   </div>
                   
                   {/* Leaflet map preview container */}
-                  <div className="h-44 rounded-2xl overflow-hidden border border-gray-150">
+                  <div 
+                    onClick={() => setIsLocationModalOpen(true)}
+                    className="relative h-44 rounded-2xl overflow-hidden border border-gray-150 group cursor-pointer"
+                  >
                     <MapView 
                       userLocation={{ 
                         latitude: user.latitude ?? coords.latitude, 
                         longitude: user.longitude ?? coords.longitude 
                       }} 
                       members={[]} 
+                      hideZoomControls={true}
                     />
+                    {/* Hover overlay for map */}
+                    <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                      <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm">
+                        <span className="text-xs font-bold text-gray-900">Tap to edit business location</span>
+                      </div>
+                    </div>
                   </div>
+                  
+                  {/* Explicit mobile-friendly edit button */}
+                  <button 
+                    onClick={() => setIsLocationModalOpen(true)}
+                    className="w-full mt-2 py-2 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl bg-gray-50/50 hover:bg-gray-100 transition-colors cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    Tap to edit business location
+                  </button>
                 </motion.div>
               )}
 
@@ -392,6 +419,15 @@ export default function MyProfilePage() {
 
         </div>
       </div>
+
+      {user && (
+        <LocationPickerModal 
+          isOpen={isLocationModalOpen}
+          onClose={() => setIsLocationModalOpen(false)}
+          initialLat={user.latitude ?? coords?.latitude ?? 12.9352}
+          initialLng={user.longitude ?? coords?.longitude ?? 77.6245}
+        />
+      )}
 
     </div>
   );

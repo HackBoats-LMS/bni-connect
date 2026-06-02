@@ -1,16 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getInitials, getAvatarColor, formatDistance } from '@/lib/utils';
 import type { NearbyMember, LocationCoords } from '@/lib/types';
 
+// Globally disable popup autoPan — prevents map from panning when a popup opens.
+// This is set at the prototype level to bypass any react-leaflet prop handling issues.
+L.Popup.prototype.options.autoPan = false;
+
 interface MapViewProps {
   userLocation: LocationCoords;
   members: NearbyMember[];
   mapCenter?: LocationCoords;
+  hideZoomControls?: boolean;
 }
 
 const DEFAULT_LAT = 12.9352;
@@ -39,7 +44,7 @@ function MapUpdater({ lat, lng }: { lat: number; lng: number }) {
       try {
         // Use setView (instant) instead of flyTo (animated) to prevent
         // NaN corruption during React re-renders mid-animation
-        map.setView([lat, lng], 13);
+        map.setView([lat, lng], map.getZoom());
       } catch {
         // Silently ignore if map isn't ready
       }
@@ -55,7 +60,8 @@ function ZoomControlUpdater() {
   const map = useMap();
 
   useEffect(() => {
-    const zoomCtrl = L.control.zoom({ position: 'bottomright' });
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 1024;
+    const zoomCtrl = L.control.zoom({ position: isMobile ? 'bottomright' : 'topleft' });
     zoomCtrl.addTo(map);
     return () => {
       zoomCtrl.remove();
@@ -65,7 +71,7 @@ function ZoomControlUpdater() {
   return null;
 }
 
-export default function LeafletMap({ userLocation, members, mapCenter }: MapViewProps) {
+export default function LeafletMap({ userLocation, members, mapCenter, hideZoomControls }: MapViewProps) {
   // Guaranteed valid user coordinates
   const lat = isValidCoord(userLocation?.latitude) ? userLocation.latitude : DEFAULT_LAT;
   const lng = isValidCoord(userLocation?.longitude) ? userLocation.longitude : DEFAULT_LNG;
@@ -89,8 +95,8 @@ export default function LeafletMap({ userLocation, members, mapCenter }: MapView
     const color = getAvatarColor(name);
     const initials = getInitials(name);
     const icon = L.divIcon({
-      className: 'custom-leaflet-marker',
-      html: `<div style="width:34px;height:34px;background:${color};border:2.5px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;cursor:pointer;font-family:'Inter',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">${initials}</div>`,
+      className: 'custom-leaflet-marker leaflet-avatar-marker',
+      html: `<div class="avatar-inner" style="width:34px;height:34px;background:${color};border:2.5px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;cursor:pointer;font-family:'Inter',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.15);">${initials}</div>`,
       iconSize: [34, 34],
       iconAnchor: [17, 17],
       popupAnchor: [0, -17],
@@ -116,21 +122,20 @@ export default function LeafletMap({ userLocation, members, mapCenter }: MapView
   );
 
   return (
-    <div className="w-full h-full rounded-2xl overflow-hidden border border-border shadow-sm relative z-0">
+    <div className="absolute inset-0 z-0">
       <MapContainer 
         center={center} 
         zoom={13} 
         style={{ height: '100%', width: '100%' }} 
         attributionControl={false} 
-        scrollWheelZoom={false}
+        scrollWheelZoom={true}
         zoomControl={false}
       >
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
         />
-        <ZoomControlUpdater />
-        <MapUpdater lat={viewLat} lng={viewLng} />
+        {mapCenter && <MapUpdater lat={viewLat} lng={viewLng} />}
         
         <Marker position={center} icon={userIcon} />
 
@@ -140,36 +145,52 @@ export default function LeafletMap({ userLocation, members, mapCenter }: MapView
              Math.abs((m.currentLongitude as number) - (m.longitude as number)) > 0.0001);
 
           return (
-            <div key={m.id}>
+            <React.Fragment key={m.id}>
               {/* Business base location marker */}
               <Marker position={[m.latitude as number, m.longitude as number]} icon={getMemberIcon(m.name)}>
-                <Popup closeButton={true} autoPanPadding={[20, 140]}>
-                  <div style={{ fontFamily: "'Inter', sans-serif" }}>
-                    <p style={{ fontWeight: 700, fontSize: '14px', marginBottom: '3px', color: '#0f0f0f' }}>{m.name}</p>
-                    <p style={{ color: '#5f5f6b', fontSize: '12px', marginBottom: '2px' }}>{m.profession}</p>
-                    <p style={{ color: '#9e9eab', fontSize: '12px', marginBottom: '4px' }}>{m.company}</p>
-                    {m.address && (
-                      <p style={{ color: '#7f7f8f', fontSize: '11px', marginBottom: '4px', lineHeight: '1.3' }}>
-                        📍 {m.address}
-                      </p>
-                    )}
-                    {m.currentCity && m.city && m.currentCity.toLowerCase() !== m.city.toLowerCase() && (
-                      <p style={{ 
-                        color: '#e62e3d', 
-                        fontSize: '10px', 
-                        fontWeight: 700, 
-                        backgroundColor: '#fce9ea', 
-                        padding: '2px 6px', 
-                        borderRadius: '4px', 
-                        display: 'inline-block',
-                        marginBottom: '4px'
-                      }}>
-                        ✈️ Traveling in {m.currentCity}
-                      </p>
-                    )}
-                    {isValidCoord(m.distance) && (
-                      <p style={{ color: '#dc2626', fontSize: '12px', fontWeight: 600 }}>{formatDistance(m.distance)}</p>
-                    )}
+                <Popup closeButton={true} autoPan={false}>
+                  <div style={{ fontFamily: "'Inter', sans-serif", minWidth: '180px', padding: '4px' }}>
+                    <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: '8px', marginBottom: '8px' }}>
+                      <h3 style={{ fontWeight: 800, fontSize: '15px', color: '#111827', margin: '0 0 2px 0' }}>{m.company || m.name}</h3>
+                      <p style={{ color: '#6b7280', fontSize: '12px', margin: 0, fontWeight: 500 }}>{m.profession}</p>
+                      {m.company && m.company !== m.name && (
+                        <p style={{ color: '#9ca3af', fontSize: '11px', margin: '2px 0 0 0' }}>Rep: {m.name}</p>
+                      )}
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {(m.address || m.city) && (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                          <span style={{ fontSize: '12px', marginTop: '1px' }}>📍</span>
+                          <p style={{ color: '#4b5563', fontSize: '11px', margin: 0, lineHeight: 1.4, fontWeight: 500 }}>
+                            {[m.address, m.city].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ')}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {m.currentCity && m.city && m.currentCity.toLowerCase() !== m.city.toLowerCase() && (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                          <span style={{ fontSize: '12px', marginTop: '1px' }}>✈️</span>
+                          <p style={{ 
+                            color: '#e62e3d', 
+                            fontSize: '11px', 
+                            fontWeight: 700, 
+                            margin: 0
+                          }}>
+                            Traveling in {m.currentCity}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {isValidCoord(m.distance) && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', paddingTop: '8px', borderTop: '1px dashed #e5e7eb' }}>
+                          <span style={{ fontSize: '12px' }}>🚗</span>
+                          <p style={{ color: '#dc2626', fontSize: '12px', fontWeight: 700, margin: 0 }}>
+                            {formatDistance(m.distance)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </Popup>
               </Marker>
@@ -177,22 +198,32 @@ export default function LeafletMap({ userLocation, members, mapCenter }: MapView
               {/* Active presence traveling marker */}
               {hasSeparateTravelLocation && (
                 <Marker position={[m.currentLatitude as number, m.currentLongitude as number]} icon={getTravelIcon()}>
-                  <Popup closeButton={true} autoPanPadding={[20, 140]}>
-                    <div style={{ fontFamily: "'Inter', sans-serif" }}>
-                      <p style={{ fontWeight: 700, fontSize: '13px', marginBottom: '2px', color: '#e62e3d' }}>
-                        ✈️ {m.name} (Active Travel Presence)
-                      </p>
-                      <p style={{ color: '#5f5f6b', fontSize: '11px', marginBottom: '2px' }}>
-                        Currently active in <strong>{m.currentCity || 'another city'}</strong>
-                      </p>
-                      <p style={{ color: '#9e9eab', fontSize: '11px' }}>
-                        Primary business base: {m.city || 'Bangalore'}
-                      </p>
+                  <Popup closeButton={true} autoPan={false}>
+                    <div style={{ fontFamily: "'Inter', sans-serif", minWidth: '180px', padding: '4px' }}>
+                      <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: '8px', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '14px' }}>✈️</span>
+                          <h3 style={{ fontWeight: 800, fontSize: '15px', color: '#111827', margin: '0 0 2px 0' }}>{m.name}</h3>
+                        </div>
+                        <p style={{ color: '#e62e3d', fontSize: '11px', margin: 0, fontWeight: 700 }}>Active Travel Presence</p>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <p style={{ color: '#6b7280', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 2px 0', fontWeight: 600 }}>Currently Active In</p>
+                          <p style={{ color: '#111827', fontSize: '13px', margin: 0, fontWeight: 700 }}>{m.currentCity || 'Another City'}</p>
+                        </div>
+                        
+                        <div>
+                          <p style={{ color: '#9ca3af', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 2px 0', fontWeight: 600 }}>Primary Business Base</p>
+                          <p style={{ color: '#4b5563', fontSize: '12px', margin: 0, fontWeight: 500 }}>{m.city || 'Bangalore'}</p>
+                        </div>
+                      </div>
                     </div>
                   </Popup>
                 </Marker>
               )}
-            </div>
+            </React.Fragment>
           );
         })}
       </MapContainer>
