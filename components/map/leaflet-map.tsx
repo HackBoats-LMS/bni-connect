@@ -71,6 +71,18 @@ function ZoomControlUpdater() {
   return null;
 }
 
+function ResizeObserverUpdater() {
+  const map = useMap();
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
+
 export default function LeafletMap({ userLocation, members, mapCenter, hideZoomControls }: MapViewProps) {
   // Guaranteed valid user coordinates
   const lat = isValidCoord(userLocation?.latitude) ? userLocation.latitude : DEFAULT_LAT;
@@ -135,6 +147,8 @@ export default function LeafletMap({ userLocation, members, mapCenter, hideZoomC
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
         />
+        {!hideZoomControls && <ZoomControlUpdater />}
+        <ResizeObserverUpdater />
         {mapCenter && <MapUpdater lat={viewLat} lng={viewLng} />}
         
         <Marker position={center} icon={userIcon} />
