@@ -359,7 +359,7 @@ export default function MemberProfilePage() {
                   </div>
                   
                   {/* Leaflet map preview container */}
-                  <div className="h-44 rounded-2xl overflow-hidden border border-gray-150">
+                  <div className="relative h-44 rounded-2xl overflow-hidden border border-gray-150">
                     <MapView userLocation={{ latitude: member.latitude ?? 12.9352, longitude: member.longitude ?? 77.6245 }} members={[{ ...member, distance: member.distance ?? 0 }]} />
                   </div>
                   
