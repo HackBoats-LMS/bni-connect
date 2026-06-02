@@ -35,10 +35,11 @@ export function formatDistance(km: number): string {
 /**
  * Get initials from a name
  */
-export function getInitials(name: string): string {
+export function getInitials(name?: string): string {
+  if (!name) return '??';
   return name
     .split(' ')
-    .map((n) => n[0])
+    .map((n) => n[0] || '')
     .join('')
     .toUpperCase()
     .slice(0, 2);
@@ -47,7 +48,8 @@ export function getInitials(name: string): string {
 /**
  * Get a consistent avatar color from a name
  */
-export function getAvatarColor(name: string): string {
+export function getAvatarColor(name?: string): string {
+  if (!name) return '#71717a';
   const colors = [
     '#ef4444', '#f97316', '#f59e0b', '#22c55e',
     '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899',

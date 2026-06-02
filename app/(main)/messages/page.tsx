@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Search, Send, Image, Smile, Phone, Video, Info, Loader2, RefreshCw, Compass } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
@@ -26,13 +26,20 @@ interface ChatMember {
   time?: string;
 }
 
-export default function MessagesPage() {
+function MessagesContent() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuthStore();
   const { coords } = useLocationStore();
 
   const [members, setMembers] = useState<ChatMember[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const activeId = searchParams.get('chat');
+  
+  const setActiveId = (id: string | null) => {
+    if (id) router.push(`/messages?chat=${id}`);
+    else router.push(`/messages`);
+  };
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [loadingMembers, setLoadingMembers] = useState(true);
@@ -41,6 +48,8 @@ export default function MessagesPage() {
 
   const activeMember = members.find((m) => m.id === activeId);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // (Removed imperative DOM manipulation for bottom nav)
 
   // Redirect if unauthorized
   useEffect(() => {
@@ -68,7 +77,12 @@ export default function MessagesPage() {
             time: '',
           }));
           setMembers(list);
-          if (list.length > 0) setActiveId(list[0].id);
+          if (list.length > 0) {
+            // Only auto-select on desktop
+            if (window.innerWidth >= 1024) {
+              setActiveId(list[0].id);
+            }
+          }
         }
       } catch (e) {
         console.error(e);
@@ -151,7 +165,7 @@ export default function MessagesPage() {
     <div className="h-[calc(100vh-5rem)] bg-white flex font-sans overflow-hidden">
       
       {/* Chats Sidebar List */}
-      <div className="w-80 border-r border-gray-150 flex flex-col shrink-0">
+      <div className={`w-full lg:w-80 border-r border-gray-150 flex-col shrink-0 ${activeId ? 'hidden lg:flex' : 'flex'}`}>
         
         {/* Search header */}
         <div className="p-4 border-b border-gray-150 shrink-0">
@@ -214,13 +228,19 @@ export default function MessagesPage() {
       </div>
 
       {/* Main Chat Panel */}
-      <div className="flex-1 bg-gray-50/20 flex flex-col min-w-0">
+      <div className={`flex-1 bg-gray-50/20 flex-col min-w-0 ${!activeId ? 'hidden lg:flex' : 'flex'}`}>
         
         {activeMember ? (
           <>
             {/* Chat header */}
-            <div className="h-16 border-b border-gray-150 bg-white px-6 flex items-center justify-between shrink-0">
+            <div className="h-16 border-b border-gray-150 bg-white px-4 lg:px-6 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3.5 min-w-0">
+                <button 
+                  onClick={() => setActiveId(null)}
+                  className="lg:hidden p-2 -ml-2 mr-1 text-gray-500 hover:bg-gray-100 rounded-full cursor-pointer"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
                 <Avatar name={activeMember.name} avatar={activeMember.avatar} size="md" showStatus status={activeMember.availability} />
                 <div className="min-w-0">
                   <h4 className="font-bold text-sm text-gray-900 truncate">{activeMember.name}</h4>
@@ -314,5 +334,13 @@ export default function MessagesPage() {
       </div>
 
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="h-full flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#e62e3d]" size={24} /></div>}>
+      <MessagesContent />
+    </Suspense>
   );
 }

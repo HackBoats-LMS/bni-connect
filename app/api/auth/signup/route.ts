@@ -2,15 +2,26 @@ import { NextRequest } from 'next/server';
 import { getUsersCollection } from '@/lib/db';
 import { createToken, setSessionCookie } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+
+const signupSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  profession: z.string().min(2, 'Profession is required'),
+  company: z.string().min(2, 'Company is required'),
+});
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, password, profession, company } = body;
-
-    if (!name || !email || !password || !profession || !company) {
-      return Response.json({ error: 'All fields are required' }, { status: 400 });
+    
+    const parsed = signupSchema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json({ error: parsed.error.issues[0]?.message || 'Validation error' }, { status: 400 });
     }
+    
+    const { name, email, password, profession, company } = parsed.data;
 
     const users = await getUsersCollection();
 

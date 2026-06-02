@@ -7,13 +7,14 @@ interface MapViewProps {
   userLocation: LocationCoords;
   members: NearbyMember[];
   mapCenter?: LocationCoords;
+  hideZoomControls?: boolean;
 }
 
 const LeafletMap = dynamic(() => import('./leaflet-map'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full rounded-2xl bg-surface border border-border flex flex-col items-center justify-center shadow-sm min-h-[300px]">
-      <div className="w-8 h-8 border-4 border-red border-t-transparent rounded-full animate-spin"></div>
+    <div className="absolute inset-0 bg-gray-50 flex flex-col items-center justify-center">
+      <div className="w-8 h-8 border-4 border-[#e62e3d] border-t-transparent rounded-full animate-spin"></div>
     </div>
   ),
 });

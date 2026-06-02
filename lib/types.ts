@@ -34,3 +34,13 @@ export interface LocationCoords {
 export interface NearbyMember extends UserProfile {
   distance: number;
 }
+
+export interface Notification {
+  id: string;
+  type: 'profile_view' | 'connection_request' | 'message';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  actionUrl?: string;
+}
