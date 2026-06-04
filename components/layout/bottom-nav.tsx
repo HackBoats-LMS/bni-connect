@@ -23,17 +23,17 @@ export function BottomNav() {
   }
 
   return (
-    <div className="fixed bottom-6 left-0 right-0 z-50 px-6 pointer-events-none pb-safe">
+    <div className="fixed bottom-6 left-0 right-0 z-50 px-4 sm:px-6 pointer-events-none pb-safe">
       <div className="max-w-md mx-auto pointer-events-auto">
-        <div className="bg-white/95 backdrop-blur-xl rounded-full px-2 py-2 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-200/60">
+        <div className="bg-white/95 backdrop-blur-xl rounded-[32px] px-2 py-2.5 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-200/60">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
             return (
-              <Link key={item.href} href={item.href} className="relative flex flex-col items-center justify-center w-16 h-12">
+              <Link key={item.href} href={item.href} className="relative flex flex-col items-center justify-center flex-1 h-12 sm:h-14">
                 {isActive && (
                   <motion.div
                     layoutId="bottom-nav-indicator"
-                    className="absolute inset-0 bg-[#fce9ea] rounded-2xl -z-10"
+                    className="absolute inset-0 mx-1 bg-[#fce9ea] rounded-2xl -z-10"
                     transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
                   />
                 )}
