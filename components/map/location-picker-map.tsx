@@ -84,9 +84,10 @@ export default function LocationPickerMap({ initialLatitude, initialLongitude, o
     }
   };
 
-  // Trigger initial geocode if none has occurred
+  // Trigger initial geocode and map pan if props change from outside (e.g. from Google Maps link extraction)
   useEffect(() => {
     if (initialLatitude && initialLongitude) {
+      setMapCenter([initialLatitude, initialLongitude]);
       Promise.resolve().then(() => {
         reverseGeocode(initialLatitude, initialLongitude);
       });

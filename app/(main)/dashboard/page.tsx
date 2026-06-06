@@ -4,19 +4,17 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { MapPin, Compass, Loader2, ArrowRight, Sparkles, Users, Eye, Zap, Navigation } from 'lucide-react';
+import { MapPin, Compass, Loader2, ArrowRight, Sparkles, Users, Eye, Zap, Navigation, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { useLocationStore } from '@/stores/use-location-store';
 import { Avatar } from '@/components/ui/avatar';
-import { StatusBadge } from '@/components/ui/status-badge';
-import type { AvailabilityStatus, NearbyMember } from '@/lib/types';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
   const { coords, city, isLocating, updateLocation } = useLocationStore();
-  const [members, setMembers] = useState<NearbyMember[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [isFetchingMembers, setIsFetchingMembers] = useState(false);
 
   useEffect(() => {
@@ -43,18 +41,19 @@ export default function DashboardPage() {
     fetchMembers();
   }, [coords]);
 
-  const activeTravelersCount = members.filter(m => m.currentCity && m.city && m.currentCity.toLowerCase() !== m.city.toLowerCase()).length;
 
   if (isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
           <Loader2 size={36} className="animate-spin text-[#e62e3d]" />
-          <span className="text-sm font-medium text-gray-500">Loading BNI Connect...</span>
+          <span className="text-sm font-medium text-gray-500">Loading Nearby...</span>
         </div>
       </div>
     );
   }
+
+  const isProfileIncomplete = user && (!user.profession || !user.company);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28 font-sans relative overflow-hidden">
@@ -72,7 +71,33 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
             {/* Left Column: Greeting & Primary Action */}
-            <div className="lg:col-span-7 space-y-6">
+            <div className="lg:col-span-8 space-y-6">
+              
+              {/* Profile Incomplete Notification */}
+              {isProfileIncomplete && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-orange-50 border border-orange-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="bg-orange-100 p-2 rounded-xl text-orange-600 mt-0.5 shrink-0">
+                      <AlertTriangle size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm">Action Required: Complete Your Profile</h3>
+                      <p className="text-gray-600 text-xs mt-1">You won't appear on the Discover map until you add your business details.</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => router.push('/settings')}
+                    className="w-full sm:w-auto shrink-0 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap"
+                  >
+                    Add Business
+                  </button>
+                </motion.div>
+              )}
+
               {/* Welcome Message */}
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
@@ -114,117 +139,89 @@ export default function DashboardPage() {
               </motion.div>
             </div>
 
-            {/* Right Column: Status & Metrics */}
-            <div className="lg:col-span-5 space-y-6 lg:pt-16">
-              {/* Current Status Card */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm overflow-hidden relative"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#ef4444]/5 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-5">
-                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                      <Sparkles size={13} className="text-[#e62e3d]" />
-                      Your Status
-                    </span>
-                    <button 
-                      onClick={() => router.push('/settings')} 
-                      className="text-xs font-bold text-[#e62e3d] bg-[#fce9ea]/50 px-3 py-1.5 rounded-lg hover:bg-[#fce9ea] transition-all"
-                    >
-                      Edit Status
-                    </button>
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status={user.availability as AvailabilityStatus} size="md" />
-                    </div>
-                    <div className="hidden sm:block h-6 w-px bg-gray-150"></div>
-                    <div className="flex items-center gap-2 text-[14px] font-medium text-gray-600 bg-gray-50 px-3.5 py-2 rounded-xl w-fit">
-                      <MapPin size={16} className="text-[#e62e3d]" />
-                      <span>{isLocating ? 'Locating...' : city || 'Unknown location'}</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-
+            {/* Right Column: Metrics & Quick Actions */}
+            <div className="lg:col-span-4 space-y-6 lg:pt-16">
               {/* Networking Metrics Grid */}
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                className="flex flex-col gap-4"
               >
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                  <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 mb-4">
-                    <Users size={18} className="text-gray-600" />
+                <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Nearby Professionals</p>
+                    <h3 className="text-3xl font-bold text-gray-900 mt-1">
+                      {isFetchingMembers ? <Loader2 size={24} className="animate-spin inline-block text-gray-400" /> : members.length}
+                    </h3>
                   </div>
-                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Nearby Users</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                    {isFetchingMembers ? <Loader2 size={16} className="animate-spin inline-block text-gray-400" /> : members.length}
-                  </h3>
+                  <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-[#e62e3d]">
+                    <Users size={28} />
+                  </div>
                 </div>
                 
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                  <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 mb-4">
-                    <Navigation size={18} className="text-gray-600" />
+                <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex items-center justify-between">
+                  <div className="min-w-0 pr-4">
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Your Location</p>
+                    <h3 className="text-xl font-bold text-gray-900 mt-1 truncate">
+                      {isLocating ? 'Locating...' : city || 'Unknown location'}
+                    </h3>
                   </div>
-                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Active Travelers</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                    {isFetchingMembers ? <Loader2 size={16} className="animate-spin inline-block text-gray-400" /> : activeTravelersCount}
-                  </h3>
+                  <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-600 shrink-0">
+                    <MapPin size={28} />
+                  </div>
                 </div>
               </motion.div>
-
-              {/* Who's Around You Widget */}
-              {members.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <div className="flex items-center justify-between mb-3 mt-2">
-                    <h3 className="text-sm font-bold text-gray-900">Who's Around You</h3>
-                    <Link href="/discover" className="text-xs font-bold text-[#e62e3d] hover:underline">View Map</Link>
-                  </div>
-                  
-                  <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
-                    {members.slice(0, 5).map((m) => (
-                      <Link href={`/discover?focus=${m.id}`} key={m.id} className="snap-start shrink-0 w-[180px] bg-white rounded-2xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center group cursor-pointer">
-                        <div className="mb-3">
-                          <Avatar 
-                            avatar={m.avatar || undefined} 
-                            name={m.name} 
-                            size="lg" 
-                          />
-                        </div>
-                        <h4 className="font-bold text-gray-900 text-sm truncate w-full">{m.name}</h4>
-                        <p className="text-xs text-gray-500 font-medium truncate w-full mt-0.5">{m.profession}</p>
-                        
-                        <div className="mt-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-md w-full">
-                          {m.city || 'Unknown'}
-                        </div>
-                      </Link>
-                    ))}
-                    
-                    {members.length > 5 && (
-                      <Link href="/discover" className="snap-start shrink-0 w-[120px] bg-gray-50 rounded-2xl border border-dashed border-gray-300 p-4 flex flex-col items-center justify-center text-center hover:bg-gray-100 transition-colors cursor-pointer">
-                        <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center mb-2">
-                          <ArrowRight size={14} className="text-[#e62e3d]" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-600">View {members.length - 5} more</span>
-                      </Link>
-                    )}
-                  </div>
-                </motion.div>
-              )}
             </div>
-
           </div>
 
-        </div>
+          {/* Full-width bottom section */}
+          {members.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mt-12"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Who's Around You</h3>
+                <Link href="/discover" className="text-sm font-bold text-[#e62e3d] hover:underline flex items-center gap-1">
+                  View Map <ArrowRight size={16} />
+                </Link>
+              </div>
+              
+              <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
+                {members.slice(0, 8).map((m) => (
+                  <Link href={`/discover?focus=${m.id}`} key={m.id} className="snap-start shrink-0 w-[180px] bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center group cursor-pointer">
+                    <div className="mb-4">
+                      <Avatar 
+                        avatar={m.avatar || undefined} 
+                        name={m.name} 
+                        size="lg" 
+                      />
+                    </div>
+                    <h4 className="font-bold text-gray-900 text-sm truncate w-full">{m.name}</h4>
+                    <p className="text-xs text-gray-500 font-medium truncate w-full mt-1">{m.profession}</p>
+                    
+                    <div className="mt-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2.5 py-1.5 rounded-md w-full truncate">
+                      {m.city || 'Unknown'}
+                    </div>
+                  </Link>
+                ))}
+                
+                {members.length > 8 && (
+                  <Link href="/discover" className="snap-start shrink-0 w-[140px] bg-gray-50 rounded-2xl border border-dashed border-gray-300 p-4 flex flex-col items-center justify-center text-center hover:bg-gray-100 transition-colors cursor-pointer group">
+                    <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <ArrowRight size={18} className="text-[#e62e3d]" />
+                    </div>
+                    <span className="text-sm font-bold text-gray-600">View {members.length - 8} more</span>
+                  </Link>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          </div>
       </main>
     </div>
   );

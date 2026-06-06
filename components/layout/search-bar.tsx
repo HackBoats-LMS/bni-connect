@@ -86,7 +86,7 @@ export function SearchBar() {
               {results.map((user) => (
                 <Link 
                   key={user.id} 
-                  href={`/profile/${user.id}`}
+                  href={`/discover`}
                   className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
                 >
                   <Avatar name={user.name} avatar={user.avatar} size="sm" showStatus status={user.availability} />

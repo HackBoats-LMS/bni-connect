@@ -1,4 +1,4 @@
-export type AvailabilityStatus = 'Available' | 'Busy' | 'Traveling' | 'Open to Meet';
+export type AvailabilityStatus = 'Available' | 'Busy' | 'Traveling' | 'Open to Meet' | string;
 
 export interface UserProfile {
   id: string;
@@ -8,15 +8,20 @@ export interface UserProfile {
   company: string;
   bio: string;
   avatar: string;
-  city: string;
-  availability: AvailabilityStatus;
   latitude: number | null;
   longitude: number | null;
   address?: string;
+  city?: string;
   currentLatitude?: number | null;
   currentLongitude?: number | null;
-  currentCity?: string | null;
-  distance?: number;
+  currentCity?: string;
+  category?: string;
+  customCategory?: string;
+  phone?: string;
+  googleMapsLink?: string;
+  role?: 'user' | 'admin';
+  isApproved?: boolean;
+  availability?: string;
 }
 
 export interface AuthResponse {

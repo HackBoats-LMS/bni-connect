@@ -6,7 +6,7 @@ import { MapPin, Building2, Briefcase, ChevronRight } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDistance } from '@/lib/utils';
-import type { NearbyMember, AvailabilityStatus } from '@/lib/types';
+import type { NearbyMember } from '@/lib/types';
 
 interface MemberCardProps {
   member: NearbyMember;
@@ -20,7 +20,7 @@ export function MemberCard({ member, index = 0 }: MemberCardProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
     >
-      <Link href={`/profile/${member.id}`} className="block group">
+      <div className="block group cursor-pointer">
         <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-[#e62e3d]/30 transition-all duration-300">
           <div className="flex items-start gap-4">
             <Avatar name={member.name} avatar={member.avatar} size="lg" showStatus status={member.availability} />
@@ -33,7 +33,6 @@ export function MemberCard({ member, index = 0 }: MemberCardProps) {
                     <span className="truncate">{member.profession}</span>
                   </div>
                 </div>
-                <StatusBadge status={member.availability as AvailabilityStatus} />
               </div>
               
               <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 font-medium">
@@ -47,14 +46,14 @@ export function MemberCard({ member, index = 0 }: MemberCardProps) {
                     <MapPin size={12} /> {formatDistance(member.distance)} away
                   </span>
                   <span className="text-xs font-semibold text-gray-500 flex items-center gap-1 group-hover:text-[#e62e3d] transition-colors">
-                    View Profile <ChevronRight size={14} />
+                    View Details <ChevronRight size={14} />
                   </span>
                 </div>
               )}
             </div>
           </div>
         </div>
-      </Link>
+      </div>
     </motion.div>
   );
 }

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
       {
         headers: {
-          'User-Agent': 'BNI-Connect-Application-Server/1.0 (contact@bni-connect.local)',
+          'User-Agent': 'Nearby-Application-Server/1.0 (contact@nearby.local)',
           'Accept-Language': 'en',
         },
       }

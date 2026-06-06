@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, Briefcase, Building2, ArrowRight, Loader2, Globe } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 
 declare global {
@@ -14,11 +13,7 @@ declare global {
 }
 
 export default function SignupPage() {
-  const router = useRouter();
-  const { setUser } = useAuthStore();
-  const [form, setForm] = useState({ name: '', email: '', password: '', profession: '', company: '' });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Check if there is an error in the URL from Google Auth
@@ -35,36 +30,6 @@ export default function SignupPage() {
     }
   }, []);
 
-  function update(key: string, val: string) { setForm((p) => ({ ...p, [key]: val })); }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Signup failed'); setLoading(false); return; }
-      setUser(data.user);
-      router.push('/discover');
-    } catch {
-      setError('Something went wrong');
-      setLoading(false);
-    }
-  }
-
-  const fields = [
-    { key: 'name', label: 'Full Name', type: 'text', ph: 'John Doe', icon: User },
-    { key: 'email', label: 'Email', type: 'email', ph: 'you@company.com', icon: Mail },
-    { key: 'password', label: 'Password', type: 'password', ph: '••••••••', icon: Lock },
-    { key: 'profession', label: 'Profession', type: 'text', ph: 'Startup Founder', icon: Briefcase },
-    { key: 'company', label: 'Company', type: 'text', ph: 'Acme Inc', icon: Building2 },
-  ];
-
   return (
     <div className="min-h-screen bg-white flex font-sans overflow-hidden relative">
       
@@ -74,7 +39,7 @@ export default function SignupPage() {
       </div>
 
       {/* Left Pane - Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 md:p-16 z-10 relative bg-white/80 backdrop-blur-sm min-h-screen overflow-y-auto">
+      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 md:p-16 z-10 relative bg-white/80 backdrop-blur-sm min-h-screen">
         
         {/* Header/Logo */}
         <div className="flex items-center justify-between">
@@ -88,21 +53,21 @@ export default function SignupPage() {
               <circle cx="6" cy="11.5" r="3.5" fill="#ef4444" />
               <circle cx="16" cy="17" r="4.5" fill="#ef4444" />
             </svg>
-            <span className="text-[22px] font-bold tracking-tight text-[#111827]">BNI CONNECT</span>
+            <span className="text-[22px] font-bold tracking-tight text-[#111827]">NEARBY</span>
           </Link>
         </div>
 
         {/* Center Content Form */}
-        <div className="w-full max-w-[400px] mx-auto my-auto py-8">
+        <div className="w-full max-w-[400px] mx-auto my-auto py-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <h1 className="text-[32px] font-bold tracking-tight text-[#111827] mb-2">Create your account</h1>
-            <p className="text-[#6b7280] text-[15px] mb-6">Join the global community of professional networkers.</p>
+            <h1 className="text-[32px] font-bold tracking-tight text-[#111827] mb-2">Create an account</h1>
+            <p className="text-[#6b7280] text-[15px] mb-8">Sign up to discover and connect with professionals near you.</p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-6">
               {error && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }} 
@@ -112,42 +77,6 @@ export default function SignupPage() {
                   {error}
                 </motion.div>
               )}
-
-              {fields.map((f) => (
-                <div key={f.key}>
-                  <label htmlFor={`signup-${f.key}`} className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">{f.label}</label>
-                  <div className="relative">
-                    <f.icon size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input 
-                      id={`signup-${f.key}`} 
-                      type={f.type} 
-                      value={form[f.key as keyof typeof form]}
-                      onChange={(e) => update(f.key, e.target.value)}
-                      placeholder={f.ph} 
-                      className="w-full px-4 py-2.5 pl-11 bg-gray-50/70 border border-gray-200 rounded-lg text-sm focus:outline-none focus:bg-white focus:border-[#e62e3d] focus:ring-2 focus:ring-[#e62e3d]/15 transition-all text-gray-900" 
-                      required 
-                    />
-                  </div>
-                </div>
-              ))}
-
-              <button 
-                type="submit" 
-                disabled={loading} 
-                className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-[#e62e3d] text-white border border-[#e62e3d] rounded-lg font-semibold text-[15px] hover:bg-[#d02432] hover:border-[#d02432] transition-all duration-150 ease-in-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e62e3d] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm mt-2"
-              >
-                {loading ? <Loader2 size={18} className="animate-spin" /> : <>Create Account <ArrowRight size={16} /></>}
-              </button>
-            </form>
-
-            {/* Google Signup Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-3.5 text-gray-500 font-semibold tracking-wide">Or continue with</span>
-              </div>
             </div>
 
             {/* Google Button */}
@@ -162,16 +91,16 @@ export default function SignupPage() {
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.16C1.43 8.55 1 10.22 1 12s.43 3.45 1.16 4.93l2.85-2.22.83-.62z" fill="#FBBC05"/>
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.16 7.07l3.68 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
-                Google
+                Continue with Google
               </a>
             </div>
           </motion.div>
         </div>
 
         {/* Footer */}
-        <div className="text-center lg:text-left text-sm text-gray-500">
+        <div className="text-center lg:text-left text-sm text-gray-500 mt-8">
           Already have an account?{' '}
-          <Link href="/login" className="text-[#e62e3d] font-bold hover:underline">Sign in</Link>
+          <Link href="/login" className="text-[#e62e3d] font-bold hover:underline">Log in</Link>
         </div>
 
       </div>
@@ -235,7 +164,7 @@ export default function SignupPage() {
             Global Network. Local Connections.
           </div>
           <h2 className="text-[28px] font-bold tracking-tight mb-2 leading-tight">Discover professionals near you, wherever you go.</h2>
-          <p className="text-gray-400 text-[14px]">Connect, network, and grow with BNI Connect.</p>
+          <p className="text-gray-400 text-[14px]">Connect, network, and grow with Nearby.</p>
         </div>
 
       </div>
@@ -243,4 +172,3 @@ export default function SignupPage() {
     </div>
   );
 }
-

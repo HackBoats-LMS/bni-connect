@@ -4,10 +4,12 @@ import dynamic from 'next/dynamic';
 import type { NearbyMember, LocationCoords } from '@/lib/types';
 
 interface MapViewProps {
-  userLocation: LocationCoords;
+  userLocation: LocationCoords | null;
   members: NearbyMember[];
   mapCenter?: LocationCoords;
   hideZoomControls?: boolean;
+  onMarkerClick?: (member: NearbyMember) => void;
+  currentUserId?: string;
 }
 
 const LeafletMap = dynamic(() => import('./leaflet-map'), {
