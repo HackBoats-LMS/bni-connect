@@ -3,8 +3,8 @@ import type { LocationCoords, UserProfile } from '@/lib/types';
 
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'error';
 
-const DEFAULT_COORDS: LocationCoords = { latitude: 12.9352, longitude: 77.6245 };
-const DEFAULT_CITY = 'Bangalore';
+export const DEFAULT_COORDS: LocationCoords = { latitude: 12.9352, longitude: 77.6245 };
+export const DEFAULT_CITY = 'Bangalore';
 
 // Initial state starts as null to avoid flashing incorrect default locations
 interface LocationState {

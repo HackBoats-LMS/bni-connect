@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     let city = '';
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`, {
-        headers: { 'User-Agent': 'BNI-Connect-MVP' }
+        headers: { 'User-Agent': 'Nearby-MVP' }
       });
       if (res.ok) {
         const data = await res.json();

@@ -25,20 +25,29 @@ const statusSizeMap = {
 };
 
 export function Avatar({ name, avatar, size = 'md', showStatus = false, status = 'Available' }: AvatarProps) {
-  const initials = getInitials(name);
-  const bgColor = getAvatarColor(name);
+  const initials = getInitials(name || 'Unknown');
+  const bgColor = getAvatarColor(name || 'Unknown');
   const statusColor = getStatusColor(status);
 
   return (
     <div className="relative inline-flex shrink-0">
-      {avatar ? (
-        <img src={avatar} alt={name} className={`${sizeMap[size]} rounded-full object-cover`} />
-      ) : (
-        <div className={`${sizeMap[size]} rounded-full flex items-center justify-center font-bold text-white shadow-sm`}
-          style={{ backgroundColor: bgColor }}>
+      <div className={`${sizeMap[size]} rounded-full overflow-hidden flex items-center justify-center font-bold text-white shadow-sm relative shrink-0`}
+           style={{ backgroundColor: bgColor }}>
+        <div className="absolute inset-0 flex items-center justify-center z-0 select-none">
           {initials}
         </div>
-      )}
+        
+        {avatar && (
+          <img 
+            src={avatar} 
+            alt={name || 'Avatar'} 
+            className="absolute inset-0 w-full h-full object-cover z-10 bg-white" 
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        )}
+      </div>
       {showStatus && (
         <span className={`absolute -bottom-0.5 -right-0.5 ${statusSizeMap[size]} rounded-full border-white pulse-dot`}
           style={{ backgroundColor: statusColor }} />

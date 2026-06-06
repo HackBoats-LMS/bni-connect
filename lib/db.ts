@@ -41,3 +41,5 @@ export async function getNotificationsCollection() {
   const db = await getDb();
   return db.collection('notifications');
 }
+
+

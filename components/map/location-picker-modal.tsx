@@ -79,7 +79,7 @@ export function LocationPickerModal({ isOpen, onClose, initialLat, initialLng }:
       let addressLine = user.address;
       
       try {
-        const geoRes = await fetch(`/api/geocode?lat=${selectedLocation.lat}&lng=${selectedLocation.lng}`);
+        const geoRes = await fetch(`/api/geocode/reverse?lat=${selectedLocation.lat}&lng=${selectedLocation.lng}`);
         const geoData = await geoRes.json();
         if (geoData.address) {
           if (geoData.address.city || geoData.address.town || geoData.address.village) {
@@ -92,7 +92,7 @@ export function LocationPickerModal({ isOpen, onClose, initialLat, initialLng }:
       }
 
       // Update profile
-      const res = await fetch('/api/profile', {
+      const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

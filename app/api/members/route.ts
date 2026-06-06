@@ -3,6 +3,24 @@ import { getUsersCollection } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { calculateDistance } from '@/lib/utils';
 
+function guessCategory(profession: string, company: string): string {
+  const text = (profession + ' ' + company).toLowerCase();
+  if (text.includes('tech') || text.includes('software') || text.includes('developer') || text.includes('it ')) return 'it_services';
+  if (text.includes('real estate') || text.includes('realtor') || text.includes('property')) return 'real_estate';
+  if (text.includes('legal') || text.includes('law') || text.includes('attorney')) return 'legal';
+  if (text.includes('finance') || text.includes('bank') || text.includes('account')) return 'finance';
+  if (text.includes('health') || text.includes('doctor') || text.includes('clinic')) return 'healthcare';
+  if (text.includes('market') || text.includes('pr ') || text.includes('agency')) return 'marketing';
+  if (text.includes('consult')) return 'consulting';
+  if (text.includes('construct') || text.includes('build')) return 'construction';
+  if (text.includes('food') || text.includes('restaurant') || text.includes('cafe')) return 'restaurant';
+  if (text.includes('design') || text.includes('art')) return 'art_design';
+  if (text.includes('educat') || text.includes('teach') || text.includes('tutor')) return 'education';
+  
+  const fallbackCategories = ['consulting', 'other', 'marketing', 'retail'];
+  return fallbackCategories[text.length % fallbackCategories.length];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -15,50 +33,59 @@ export async function GET(request: NextRequest) {
     const radius = parseFloat(searchParams.get('radius') || '50');
 
     const users = await getUsersCollection();
-    const allUsers = await users.find(
-      {},
-      { projection: { password: 0 } }
-    ).toArray();
-
-    const members = allUsers
-      .filter((u) => u._id.toString() !== session.userId)
-      .map((u) => {
-        let memberLat = u.latitude;
-        let memberLng = u.longitude;
-        const needsFallback = memberLat === null || memberLat === undefined || isNaN(Number(memberLat)) ||
-                              memberLng === null || memberLng === undefined || isNaN(Number(memberLng));
-        if (needsFallback) {
-          if (hasLocation) {
-            const offsetLat = (Math.random() - 0.5) * 0.01;
-            const offsetLng = (Math.random() - 0.5) * 0.01;
-            memberLat = lat + offsetLat;
-            memberLng = lng + offsetLng;
-          } else {
-            memberLat = 12.9352;
-            memberLng = 77.6245;
+    
+    let dbUsers;
+    if (hasLocation) {
+      dbUsers = await users.aggregate([
+        {
+          $geoNear: {
+            near: { type: "Point", coordinates: [lng, lat] },
+            distanceField: "calculatedDistance",
+            maxDistance: radius * 1000,
+            spherical: true,
+            distanceMultiplier: 0.001
           }
-        }
+        },
+        { $project: { password: 0 } }
+      ]).toArray();
+    } else {
+      dbUsers = await users.find({}, { projection: { password: 0 } }).limit(200).toArray();
+    }
 
-        const distance = hasLocation ? calculateDistance(lat, lng, memberLat, memberLng) : 0;
+    const members = dbUsers
+      .filter((u) => u.profession && u.profession.trim() !== '')
+      .map((u) => {
+        const category = u.category || guessCategory(u.profession || '', u.company || '');
 
         return {
           id: u._id.toString(), name: u.name || '', email: u.email || '',
           profession: u.profession || '', company: u.company || '', bio: u.bio || '',
           avatar: u.avatar || '', city: u.city || '',
-          availability: u.availability || 'Available',
-          latitude: Number(memberLat),
-          longitude: Number(memberLng),
+          category: category,
+          customCategory: u.customCategory || '',
+          latitude: Number(u.latitude),
+          longitude: Number(u.longitude),
           address: u.address || '',
           currentLatitude: u.currentLatitude != null ? Number(u.currentLatitude) : null,
           currentLongitude: u.currentLongitude != null ? Number(u.currentLongitude) : null,
           currentCity: u.currentCity || '',
-          distance: Number(distance) || 0,
+          phone: u.phone || '',
+          googleMapsLink: u.googleMapsLink || '',
+          distance: u.calculatedDistance ?? 0,
         };
       });
 
-    const filteredMembers = hasLocation 
-      ? members.filter((u) => u.distance <= radius).sort((a, b) => a.distance - b.distance)
-      : members.sort((a, b) => a.name.localeCompare(b.name));
+    const categoryFilter = searchParams.get('category');
+    
+    let filteredMembers = members;
+    
+    if (categoryFilter) {
+      filteredMembers = filteredMembers.filter(m => m.category === categoryFilter);
+    }
+    
+    if (!hasLocation) {
+      filteredMembers = filteredMembers.sort((a, b) => a.name.localeCompare(b.name));
+    }
 
     return Response.json({ members: filteredMembers });
   } catch (error) {

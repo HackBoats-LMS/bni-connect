@@ -8,14 +8,14 @@ import {
   Compass, 
   Map, 
   Users, 
-  MessageSquare, 
   UserCircle, 
   Settings, 
   LogOut, 
   Search, 
   SlidersHorizontal, 
   Bell,
-  MapPin
+  MapPin,
+  Briefcase
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { useLocationStore } from '@/stores/use-location-store';
@@ -32,28 +32,34 @@ export default function MainLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { isLocating, updateLocation } = useLocationStore();
+  const { coords, isLocating, updateLocation } = useLocationStore();
 
   const handleLogout = () => {
     logout();
     router.push('/');
   };
 
+  React.useEffect(() => {
+    if (user && !user.isApproved && user.role !== 'admin' && pathname !== '/pending') {
+      router.push('/pending');
+    }
+  }, [user, pathname, router]);
+
   const navItems: { href: string; label: string; icon: typeof Compass; badge?: number; disabled?: boolean }[] = [
     { href: '/dashboard', label: 'Home', icon: Compass },
     { href: '/discover', label: 'Discover', icon: Map },
-    { href: '/connections', label: 'Connections', icon: Users },
-    { href: '/messages', label: 'Messages', icon: MessageSquare, badge: 3 },
-    { href: '/profile', label: 'Profile', icon: UserCircle },
     { href: '/settings', label: 'Settings', icon: Settings },
   ];
+
+  if (user?.role === 'admin') {
+    navItems.push({ href: '/admin', label: 'Admin Panel', icon: Users });
+  }
 
   const getPageTitle = () => {
     if (pathname.startsWith('/discover')) return 'Discover';
     if (pathname.startsWith('/dashboard')) return 'Dashboard';
-    if (pathname.startsWith('/profile')) return 'Profile';
     if (pathname.startsWith('/settings')) return 'Settings';
-    return 'BNI CONNECT';
+    return 'NEARBY';
   };
 
   return (
@@ -74,7 +80,7 @@ export default function MainLayout({
               <circle cx="6" cy="11.5" r="3.5" fill="#ef4444" />
               <circle cx="16" cy="17" r="4.5" fill="#ef4444" />
             </svg>
-            <span className="text-[20px] font-bold tracking-tight text-[#e62e3d]">BNI CONNECT</span>
+            <span className="text-[20px] font-bold tracking-tight text-[#e62e3d]">NEARBY</span>
           </Link>
 
           {/* Navigation Links */}
@@ -110,20 +116,22 @@ export default function MainLayout({
 
         <div className="space-y-6">
           {/* Enable Precise Location Card */}
-          <div className="bg-[#fce9ea]/50 border border-[#fce9ea]/30 rounded-2xl p-5 text-center relative overflow-hidden">
-            <div className="w-10 h-10 bg-[#e62e3d]/10 text-[#e62e3d] rounded-full flex items-center justify-center mx-auto mb-3">
-              <MapPin size={18} />
+          {!coords && (
+            <div className="bg-[#fce9ea]/50 border border-[#fce9ea]/30 rounded-2xl p-5 text-center relative overflow-hidden">
+              <div className="w-10 h-10 bg-[#e62e3d]/10 text-[#e62e3d] rounded-full flex items-center justify-center mx-auto mb-3">
+                <MapPin size={18} />
+              </div>
+              <h4 className="text-xs font-bold text-gray-900 mb-1">Enable precise location</h4>
+              <p className="text-[10px] text-gray-500 leading-normal mb-3.5">Allow precise location to see more relevant nearby businesses.</p>
+              <button 
+                onClick={updateLocation} 
+                disabled={isLocating}
+                className="w-full py-2 bg-[#e62e3d] text-white text-[11px] font-bold rounded-lg hover:bg-[#d02432] active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+              >
+                {isLocating ? 'Locating...' : 'Enable Location'}
+              </button>
             </div>
-            <h4 className="text-xs font-bold text-gray-900 mb-1">Enable precise location</h4>
-            <p className="text-[10px] text-gray-500 leading-normal mb-3.5">Allow precise location to see more relevant nearby businesses.</p>
-            <button 
-              onClick={updateLocation} 
-              disabled={isLocating}
-              className="w-full py-2 bg-[#e62e3d] text-white text-[11px] font-bold rounded-lg hover:bg-[#d02432] active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
-            >
-              {isLocating ? 'Locating...' : 'Enable Location'}
-            </button>
-          </div>
+          )}
 
           {/* Logout Button */}
           <button
@@ -149,17 +157,11 @@ export default function MainLayout({
             
             <SearchBar />
 
-            {/* Filters Button */}
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
-              <SlidersHorizontal size={14} />
-              <span>Filters</span>
-            </button>
 
-            <NotificationBell />
 
             {/* User Profile dropdown avatar */}
             {user && (
-              <Link href="/profile" className="flex items-center gap-2 hover:opacity-95 transition-opacity">
+              <Link href="/settings" className="flex items-center gap-2 hover:opacity-95 transition-opacity">
                 <Avatar name={user.name} avatar={user.avatar} size="sm" showStatus status={user.availability} />
               </Link>
             )}
@@ -174,9 +176,7 @@ export default function MainLayout({
             <button className="w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-50 transition-colors">
               <Search size={18} />
             </button>
-            <div className="scale-90 origin-right">
-              <NotificationBell />
-            </div>
+
           </div>
         </header>
 

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { searchLocalIndianCities } from '@/lib/india-cities';
 
 const cache = new Map<string, unknown>();
 
@@ -35,13 +36,23 @@ export async function GET(request: NextRequest) {
 
     const cacheKey = q.trim().toLowerCase();
     if (cache.has(cacheKey)) {
-      return Response.json(cache.get(cacheKey));
+      return Response.json(cache.get(cacheKey), {
+        headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=43200' }
+      });
+    }
+
+    const localResults = searchLocalIndianCities(q);
+    if (localResults.length > 0) {
+      cache.set(cacheKey, localResults);
+      return Response.json(localResults, {
+        headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=43200' }
+      });
     }
 
     const response = await fetchWithRetry(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=in&limit=5`,
       {
-        'User-Agent': 'BNI-Connect-Application-Server/1.0 (contact@bni-connect.local)',
+        'User-Agent': 'Nearby-Application-Server/1.0 (contact@nearby.local)',
         'Accept-Language': 'en',
       },
       3,
@@ -54,7 +65,9 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
     cache.set(cacheKey, data);
-    return Response.json(data);
+    return Response.json(data, {
+      headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=43200' }
+    });
   } catch (error) {
     console.error('Search geocode proxy error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

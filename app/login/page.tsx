@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight, Loader2, Globe } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 
 declare global {
@@ -14,12 +13,7 @@ declare global {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { setUser } = useAuthStore();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Check if there is an error in the URL from Google Auth
@@ -36,25 +30,6 @@ export default function LoginPage() {
     }
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Login failed'); setLoading(false); return; }
-      setUser(data.user);
-      router.push('/discover');
-    } catch {
-      setError('Something went wrong');
-      setLoading(false);
-    }
-  }
 
   return (
     <div className="min-h-screen bg-white flex font-sans overflow-hidden relative">
@@ -79,7 +54,7 @@ export default function LoginPage() {
               <circle cx="6" cy="11.5" r="3.5" fill="#ef4444" />
               <circle cx="16" cy="17" r="4.5" fill="#ef4444" />
             </svg>
-            <span className="text-[22px] font-bold tracking-tight text-[#111827]">BNI CONNECT</span>
+            <span className="text-[22px] font-bold tracking-tight text-[#111827]">NEARBY</span>
           </Link>
         </div>
 
@@ -93,7 +68,7 @@ export default function LoginPage() {
             <h1 className="text-[32px] font-bold tracking-tight text-[#111827] mb-2">Welcome back</h1>
             <p className="text-[#6b7280] text-[15px] mb-8">Sign in to discover and connect with professionals near you.</p>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-6">
               {error && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }} 
@@ -103,59 +78,6 @@ export default function LoginPage() {
                   {error}
                 </motion.div>
               )}
-
-              <div>
-                <label htmlFor="login-email" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Email Address</label>
-                <div className="relative">
-                  <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input 
-                    id="login-email" 
-                    type="email" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com" 
-                    className="w-full px-4 py-3 pl-11 bg-gray-50/70 border border-gray-200 rounded-lg text-sm focus:outline-none focus:bg-white focus:border-[#e62e3d] focus:ring-2 focus:ring-[#e62e3d]/15 transition-all text-gray-900" 
-                    required 
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label htmlFor="login-password" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Password</label>
-                  <Link href="#" className="text-xs font-semibold text-[#e62e3d] hover:underline">Forgot password?</Link>
-                </div>
-                <div className="relative">
-                  <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input 
-                    id="login-password" 
-                    type="password" 
-                    value={password} 
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" 
-                    className="w-full px-4 py-3 pl-11 bg-gray-50/70 border border-gray-200 rounded-lg text-sm focus:outline-none focus:bg-white focus:border-[#e62e3d] focus:ring-2 focus:ring-[#e62e3d]/15 transition-all text-gray-900" 
-                    required 
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
-                disabled={loading} 
-                className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-[#e62e3d] text-white border border-[#e62e3d] rounded-lg font-semibold text-[15px] hover:bg-[#d02432] hover:border-[#d02432] transition-all duration-150 ease-in-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e62e3d] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-              >
-                {loading ? <Loader2 size={18} className="animate-spin" /> : <>Sign In <ArrowRight size={16} /></>}
-              </button>
-            </form>
-
-            {/* Google Login Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-3.5 text-gray-500 font-semibold tracking-wide">Or continue with</span>
-              </div>
             </div>
 
             {/* Google Button */}
@@ -177,9 +99,9 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <div className="text-center lg:text-left text-sm text-gray-500">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-[#e62e3d] font-bold hover:underline">Sign up</Link>
+        <div className="text-center lg:text-left text-sm text-gray-500 mt-8">
+          Admin access?{' '}
+          <Link href="/admin/login" className="text-[#e62e3d] font-bold hover:underline">Log in</Link>
         </div>
 
       </div>
@@ -243,7 +165,7 @@ export default function LoginPage() {
             Global Network. Local Connections.
           </div>
           <h2 className="text-[28px] font-bold tracking-tight mb-2 leading-tight">Discover professionals near you, wherever you go.</h2>
-          <p className="text-gray-400 text-[14px]">Connect, network, and grow with BNI Connect.</p>
+          <p className="text-gray-400 text-[14px]">Connect, network, and grow with Nearby.</p>
         </div>
 
       </div>

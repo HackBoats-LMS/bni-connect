@@ -84,8 +84,8 @@ export async function GET(request: NextRequest) {
         name,
         email,
         password: '', // No password for OAuth users
-        profession: 'Professional', // Default
-        company: 'Independent', // Default
+        profession: '',
+        company: '',
         bio: '',
         avatar,
         city: '',
@@ -98,6 +98,8 @@ export async function GET(request: NextRequest) {
         currentCity: '',
         lastLocationUpdate: null,
         authProvider: 'google',
+        role: 'user',
+        isApproved: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
