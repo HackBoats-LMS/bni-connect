@@ -15,7 +15,7 @@ import {
   SlidersHorizontal, 
   Bell,
   MapPin,
-  Briefcase
+  AlertTriangle
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { useLocationStore } from '@/stores/use-location-store';
@@ -32,7 +32,7 @@ export default function MainLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { coords, isLocating, updateLocation } = useLocationStore();
+  const { isLocating, updateLocation, status: locationStatus, error: locationError } = useLocationStore();
 
   const handleLogout = () => {
     logout();
@@ -182,6 +182,21 @@ export default function MainLayout({
 
         {/* Content Render Outlet */}
         <main className="flex-1 pb-safe min-h-0 relative">
+          {(locationStatus === 'error' || locationStatus === 'denied') && (
+            <div className="bg-orange-50 border-b border-orange-200 px-4 py-2.5 flex items-start gap-3">
+              <AlertTriangle className="text-orange-500 shrink-0 mt-0.5" size={16} />
+              <div className="flex-1">
+                <p className="text-xs font-bold text-orange-900 leading-tight">Location disabled</p>
+                <p className="text-[11px] font-medium text-orange-700 leading-snug mt-0.5">Please turn on your location and allow permissions for accurate tracking and nearby features.</p>
+              </div>
+              <button 
+                onClick={updateLocation}
+                className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-orange-600 bg-orange-100 hover:bg-orange-200 px-2.5 py-1.5 rounded-lg transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {children}
         </main>
 
