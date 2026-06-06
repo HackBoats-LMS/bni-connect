@@ -32,7 +32,7 @@ export default function MainLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { isLocating, updateLocation, status: locationStatus, error: locationError } = useLocationStore();
+  const { coords, isLocating, updateLocation, status: locationStatus, error: locationError } = useLocationStore();
 
   const handleLogout = () => {
     logout();
