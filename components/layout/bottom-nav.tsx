@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Compass, UserCircle, Users, AlignLeft, Map as MapIcon } from 'lucide-react';
+import { LayoutDashboard, Compass, UserCircle, Users, AlignLeft, Map as MapIcon, Settings } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/discover', label: 'Map', icon: MapIcon },
   { href: '/discover?view=list', label: 'List', icon: AlignLeft },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function BottomNav() {

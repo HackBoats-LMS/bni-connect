@@ -61,10 +61,18 @@ export function SearchBar() {
   }, [query]);
 
   return (
-    <div className="relative w-full max-w-[320px]" ref={dropdownRef}>
+    <form 
+      className="relative w-full max-w-[320px]" 
+      ref={dropdownRef}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement) activeElement.blur();
+      }}
+    >
       <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
       <input 
-        type="text" 
+        type="search" 
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => { if (query.length >= 2) setIsOpen(true) }}
@@ -104,6 +112,6 @@ export function SearchBar() {
           )}
         </div>
       )}
-    </div>
+    </form>
   );
 }
