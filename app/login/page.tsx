@@ -23,6 +23,7 @@ export default function LoginPage() {
       if (errorParam === 'google_auth_failed') setError('Google authentication failed.');
       else if (errorParam === 'no_code') setError('No authorization code provided by Google.');
       else if (errorParam === 'server_config') setError('Server is missing Google Auth configuration.');
+      else if (errorParam === 'unauthorized_email') setError('Your email is not registered. Please contact your administrator to get access.');
       else setError('An error occurred during Google authentication.');
       
       // Clean up the URL
@@ -65,8 +66,8 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <h1 className="text-[32px] font-bold tracking-tight text-[#111827] mb-2">Welcome back</h1>
-            <p className="text-[#6b7280] text-[15px] mb-8">Sign in to discover and connect with professionals near you.</p>
+            <h1 className="text-[32px] font-bold tracking-tight text-[#111827] mb-2">Member Login</h1>
+            <p className="text-[#6b7280] text-[15px] mb-8">Sign in with your registered email. You must be added by an admin to access the network.</p>
 
             <div className="space-y-6">
               {error && (

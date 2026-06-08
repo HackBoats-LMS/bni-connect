@@ -39,11 +39,7 @@ export default function MainLayout({
     router.push('/');
   };
 
-  React.useEffect(() => {
-    if (user && !user.isApproved && user.role !== 'admin' && pathname !== '/pending') {
-      router.push('/pending');
-    }
-  }, [user, pathname, router]);
+
 
   const navItems: { href: string; label: string; icon: typeof Compass; badge?: number; disabled?: boolean }[] = [
     { href: '/dashboard', label: 'Home', icon: Compass },

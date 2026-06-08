@@ -12,7 +12,7 @@ export function SearchBar() {
   const [results, setResults] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLFormElement>(null);
   const pathname = usePathname();
 
   // Close dropdown on click outside

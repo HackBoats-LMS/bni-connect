@@ -67,44 +67,24 @@ export async function GET(request: NextRequest) {
     const users = await getUsersCollection();
     let existingUser = await users.findOne({ email });
 
-    let userIdStr = '';
-
-    if (existingUser) {
-      userIdStr = existingUser._id.toString();
-      // Optionally update avatar/name if missing
-      if (!existingUser.avatar || existingUser.name === 'Google User') {
-        await users.updateOne(
-          { _id: existingUser._id },
-          { $set: { avatar: existingUser.avatar || avatar, name: existingUser.name === 'Google User' ? name : existingUser.name } }
-        );
-      }
-    } else {
-      // Create new user for Google login
-      const result = await users.insertOne({
-        name,
-        email,
-        password: '', // No password for OAuth users
-        profession: '',
-        company: '',
-        bio: '',
-        avatar,
-        city: '',
-        availability: 'Available',
-        latitude: null,
-        longitude: null,
-        address: '',
-        currentLatitude: null,
-        currentLongitude: null,
-        currentCity: '',
-        lastLocationUpdate: null,
-        authProvider: 'google',
-        role: 'user',
-        isApproved: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      userIdStr = result.insertedId.toString();
+    if (!existingUser) {
+      // Reject login if user is not pre-approved by admin
+      return NextResponse.redirect(new URL('/login?error=unauthorized_email', request.url));
     }
+
+    const userIdStr = existingUser._id.toString();
+    
+    // Update avatar/name from Google if they were just invited with an email
+    await users.updateOne(
+      { _id: existingUser._id },
+      { 
+        $set: { 
+          avatar: existingUser.avatar || avatar, 
+          name: existingUser.name || name,
+          isApproved: true // Ensure they are marked approved
+        } 
+      }
+    );
 
     // 4. Create session and redirect
     const token = await createToken(userIdStr);

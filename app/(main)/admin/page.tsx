@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/stores/use-auth-store';
-import { ShieldCheck, XCircle, CheckCircle, Search, Loader2, Clock, User } from 'lucide-react';
+import { ShieldCheck, Search, Loader2, Upload, UserPlus, XCircle, Trash2 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 
 interface AdminUser {
@@ -14,7 +14,6 @@ interface AdminUser {
   profession: string;
   avatar: string;
   role: string;
-  isApproved: boolean;
   createdAt: string;
 }
 
@@ -25,7 +24,16 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved'>('all');
+
+  // Invite states
+  const [newEmail, setNewEmail] = useState('');
+  const [newName, setNewName] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState('');
+  
+  // Bulk upload states
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && user?.role !== 'admin') {
@@ -33,44 +41,27 @@ export default function AdminPage() {
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const res = await fetch('/api/admin/users');
-        const data = await res.json();
-        if (data.users) {
-          setUsers(data.users);
-        }
-      } catch (err) {
-        console.error('Failed to fetch users', err);
-      } finally {
-        setLoading(false);
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      if (data.users) {
+        setUsers(data.users);
       }
+    } catch (err) {
+      console.error('Failed to fetch users', err);
+    } finally {
+      setLoading(false);
     }
-    
+  };
+
+  useEffect(() => {
     if (user?.role === 'admin') {
       fetchUsers();
     }
   }, [user]);
 
-  const toggleApproval = async (userId: string, currentStatus: boolean) => {
-    if (userId === 'admin_user_id') return; // protect default admin
-    setUpdatingId(userId);
-    try {
-      const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, isApproved: !currentStatus })
-      });
-      if (res.ok) {
-        setUsers(users.map(u => u.id === userId ? { ...u, isApproved: !currentStatus } : u));
-      }
-    } catch (err) {
-      console.error('Failed to update user', err);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
   const toggleRole = async (userId: string, currentRole: string) => {
     if (userId === 'admin_user_id') return;
     setUpdatingId(userId);
@@ -110,19 +101,91 @@ export default function AdminPage() {
     }
   };
 
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail) return;
+    
+    setIsInviting(true);
+    setInviteMessage('');
+    try {
+      const res = await fetch('/api/admin/users/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newEmail, name: newName })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setInviteMessage('User invited successfully!');
+        setNewEmail('');
+        setNewName('');
+        fetchUsers();
+      } else {
+        setInviteMessage(data.error || 'Failed to invite user');
+      }
+    } catch (err) {
+      setInviteMessage('An error occurred');
+    } finally {
+      setIsInviting(false);
+      setTimeout(() => setInviteMessage(''), 5000);
+    }
+  };
+
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setInviteMessage('');
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        // Basic CSV parser (expects Name,Email format or just Email)
+        const lines = text.split('\n');
+        const newUsers = lines.map(line => {
+          const parts = line.split(',');
+          if (parts.length >= 2) return { name: parts[0].trim(), email: parts[1].trim() };
+          return { name: '', email: parts[0].trim() };
+        }).filter(u => u.email && u.email.includes('@'));
+
+        if (newUsers.length === 0) {
+          setInviteMessage('No valid emails found in CSV');
+          setIsUploading(false);
+          return;
+        }
+
+        const res = await fetch('/api/admin/users/bulk-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ users: newUsers })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          setInviteMessage(`Success: Added ${data.addedCount} users. Skipped ${data.skippedCount} duplicates.`);
+          fetchUsers();
+        } else {
+          setInviteMessage(data.error || 'Failed to bulk upload');
+        }
+      } catch (err) {
+        setInviteMessage('Error processing CSV');
+      } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   if (authLoading || user?.role !== 'admin') {
     return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
   }
 
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchesSearch) return false;
-    
-    if (activeTab === 'pending') return !u.isApproved && u.role !== 'admin';
-    if (activeTab === 'approved') return u.isApproved || u.role === 'admin';
-    return true;
-  });
+  const filteredUsers = users.filter(u => 
+    u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="p-6 max-w-6xl mx-auto pb-24">
@@ -132,68 +195,116 @@ export default function AdminPage() {
             <ShieldCheck className="text-[#e62e3d]" size={28} />
             User Management
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Approve or revoke access for Nearby members.</p>
-        </div>
-        
-        <div className="relative">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search users..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full md:w-64 pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#e62e3d] focus:ring-1 focus:ring-[#e62e3d]"
-          />
+          <p className="text-sm text-gray-500 mt-1">Add members so they can access the Nearby network.</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-6 border-b border-gray-200 pb-4 overflow-x-auto hide-scrollbar">
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`shrink-0 px-4 py-2 text-sm font-bold rounded-xl transition-colors ${activeTab === 'all' ? 'bg-[#e62e3d] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-        >
-          All Users
-        </button>
-        <button
-          onClick={() => setActiveTab('pending')}
-          className={`shrink-0 flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl transition-colors ${activeTab === 'pending' ? 'bg-[#e62e3d] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-        >
-          <Clock size={16} />
-          Pending Approvals
-        </button>
-        <button
-          onClick={() => setActiveTab('approved')}
-          className={`shrink-0 flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl transition-colors ${activeTab === 'approved' ? 'bg-[#e62e3d] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-        >
-          <CheckCircle size={16} />
-          Approved Members
-        </button>
+      {/* Invite Sections */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Single Invite */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <UserPlus size={20} className="text-[#e62e3d]"/>
+            Invite Member
+          </h2>
+          <form onSubmit={handleInvite} className="space-y-4">
+            <input 
+              type="text" 
+              placeholder="Name (Optional)" 
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#e62e3d] focus:ring-1 focus:ring-[#e62e3d]"
+            />
+            <input 
+              type="email" 
+              placeholder="Email address *" 
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#e62e3d] focus:ring-1 focus:ring-[#e62e3d]"
+            />
+            <button
+              type="submit"
+              disabled={isInviting || !newEmail}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#e62e3d] text-white text-sm font-bold rounded-xl hover:bg-[#d02432] transition-colors disabled:opacity-50"
+            >
+              {isInviting ? <Loader2 size={18} className="animate-spin"/> : 'Add to Network'}
+            </button>
+          </form>
+        </div>
+
+        {/* Bulk Invite */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <Upload size={20} className="text-[#e62e3d]"/>
+              Bulk Import (CSV)
+            </h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Upload a CSV file to add multiple members at once. Format should be: <br/>
+              <code className="bg-gray-100 px-1 rounded">Name,Email</code> (one per line)
+            </p>
+          </div>
+          
+          <div className="relative">
+            <input 
+              type="file" 
+              accept=".csv"
+              ref={fileInputRef}
+              onChange={handleBulkUpload}
+              disabled={isUploading}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            />
+            <div className={`w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed rounded-xl text-sm font-bold transition-colors ${isUploading ? 'bg-gray-50 border-gray-200 text-gray-400' : 'bg-red-50 border-red-200 text-[#e62e3d] hover:bg-red-100'}`}>
+              {isUploading ? <Loader2 size={18} className="animate-spin"/> : <><Upload size={18}/> Select CSV File</>}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      {inviteMessage && (
+        <div className={`p-4 rounded-xl mb-6 text-sm font-bold ${inviteMessage.includes('Error') || inviteMessage.includes('Failed') || inviteMessage.includes('already exists') ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'}`}>
+          {inviteMessage}
+        </div>
+      )}
+
+      {/* Users Table */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900">Network Members ({filteredUsers.length})</h3>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Search users..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full md:w-64 pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#e62e3d]"
+            />
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50/80 text-xs uppercase text-gray-500 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 font-semibold">User</th>
                 <th className="px-6 py-4 font-semibold">Role</th>
-                <th className="px-6 py-4 font-semibold">Joined</th>
-                <th className="px-6 py-4 font-semibold">Status</th>
+                <th className="px-6 py-4 font-semibold">Added On</th>
                 <th className="px-6 py-4 font-semibold text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
                     <Loader2 className="animate-spin mx-auto mb-2" size={24} />
                     Loading users...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500 font-medium">
-                    No users found matching "{searchQuery}"
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500 font-medium">
+                    No users found
                   </td>
                 </tr>
               ) : (
@@ -208,7 +319,7 @@ export default function AdminPage() {
                       <div className="flex items-center gap-3">
                         <Avatar name={u.name || 'Unknown User'} avatar={u.avatar} size="sm" />
                         <div>
-                          <p className="font-bold text-gray-900">{u.name || 'Unknown User'}</p>
+                          <p className="font-bold text-gray-900">{u.name || 'Invited User'}</p>
                           <p className="text-xs text-gray-500">{u.email}</p>
                         </div>
                       </div>
@@ -221,42 +332,8 @@ export default function AdminPage() {
                     <td className="px-6 py-4 text-xs text-gray-500">
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4">
-                      {u.role === 'admin' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-50 text-green-700 text-xs font-bold">
-                          <CheckCircle size={14} /> Approved
-                        </span>
-                      ) : u.isApproved ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-50 text-green-700 text-xs font-bold">
-                          <CheckCircle size={14} /> Approved
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-50 text-orange-600 text-xs font-bold">
-                          <Clock size={14} /> Pending
-                        </span>
-                      )}
-                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {u.role !== 'admin' && (
-                          <button
-                            onClick={() => toggleApproval(u.id, u.isApproved)}
-                            disabled={updatingId === u.id}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                              u.isApproved 
-                                ? 'text-gray-500 hover:bg-gray-100' 
-                                : 'bg-[#e62e3d] text-white hover:bg-[#d02432]'
-                            } disabled:opacity-50`}
-                          >
-                            {updatingId === u.id ? (
-                              <Loader2 size={14} className="animate-spin" />
-                            ) : u.isApproved ? (
-                              <>Revoke</>
-                            ) : (
-                              <>Approve</>
-                            )}
-                          </button>
-                        )}
                         {u.id !== 'admin_user_id' && (
                           <>
                             <button
@@ -275,12 +352,13 @@ export default function AdminPage() {
                             <button
                               onClick={() => deleteUser(u.id)}
                               disabled={updatingId === u.id}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                              title="Delete User"
                             >
                               {updatingId === u.id ? (
                                 <Loader2 size={14} className="animate-spin" />
                               ) : (
-                                'Delete'
+                                <Trash2 size={16} />
                               )}
                             </button>
                           </>

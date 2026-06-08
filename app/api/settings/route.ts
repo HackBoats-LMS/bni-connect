@@ -50,6 +50,7 @@ export async function PATCH(request: NextRequest) {
         customCategory: user.customCategory || '',
         phone: user.phone || '',
         googleMapsLink: user.googleMapsLink || '',
+        isApproved: user.isApproved ?? true,
       } : null,
     });
   } catch (error) {
