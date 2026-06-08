@@ -55,11 +55,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (lat && lng) {
-      return NextResponse.json({ 
-        success: true, 
-        latitude: parseFloat(lat), 
+      return NextResponse.json({
+        success: true,
+        latitude: parseFloat(lat),
         longitude: parseFloat(lng),
-        expandedUrl 
+        expandedUrl
       }, {
         headers: {
           'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=43200',
@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ 
-      success: false, 
+    return NextResponse.json({
+      success: false,
       message: 'Could not extract coordinates from the link',
       expandedUrl
     }, { status: 404 });

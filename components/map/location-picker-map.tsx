@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Search, Loader2, Locate } from 'lucide-react';
+import { Search, Loader2, Locate, Maximize2, Minimize2, Check } from 'lucide-react';
 
 interface LocationPickerProps {
   initialLatitude: number | null;
@@ -53,6 +53,7 @@ export default function LocationPickerMap({ initialLatitude, initialLongitude, o
   const [addressDetail, setAddressDetail] = useState('');
   const [searchResults, setSearchResults] = useState<{ lat: string; lon: string; display_name: string }[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const dropdownRef = useRef<HTMLFormElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -160,7 +161,31 @@ export default function LocationPickerMap({ initialLatitude, initialLongitude, o
   }, []);
 
   return (
-    <div className="flex flex-col gap-3 font-sans w-full">
+    <div className={
+      isFullscreen 
+        ? "fixed inset-0 z-[9999] bg-gray-50 p-4 sm:p-6 flex flex-col gap-4 font-sans w-screen h-screen" 
+        : "flex flex-col gap-3 font-sans w-full"
+    }>
+      {isFullscreen && (
+        <div className="flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-gray-900 text-lg">Pin your Location</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="bg-white border border-gray-200 text-gray-700 p-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-gray-50 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+              title="Minimize Map"
+            >
+              <Minimize2 size={18} />
+            </button>
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="bg-[#e62e3d] hover:bg-[#d02432] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Check size={16} /> Confirm
+            </button>
+          </div>
+        </div>
+      )}
       {/* Search Input Bar */}
       <form onSubmit={handleSearch} className="relative z-10 w-full" ref={dropdownRef}>
         <div className="relative flex items-center">
@@ -197,7 +222,11 @@ export default function LocationPickerMap({ initialLatitude, initialLongitude, o
       </form>
 
       {/* Map Picker viewport wrapper */}
-      <div className="h-56 w-full rounded-2xl overflow-hidden border border-gray-200 relative shadow-inner z-0">
+      <div className={
+        isFullscreen 
+          ? "flex-1 w-full rounded-2xl overflow-hidden border border-gray-200 relative shadow-inner z-0" 
+          : "h-56 w-full rounded-2xl overflow-hidden border border-gray-200 relative shadow-inner z-0"
+      }>
         <MapContainer
           center={mapCenter}
           zoom={15}
@@ -211,6 +240,18 @@ export default function LocationPickerMap({ initialLatitude, initialLongitude, o
           <MapEventsHandler onChange={handleMapMove} />
           <MapController center={mapCenter} />
         </MapContainer>
+
+        {/* Expand / Collapse Button */}
+        {!isFullscreen && (
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(true)}
+            className="absolute top-4 right-4 bg-white/90 hover:bg-white text-gray-700 hover:text-[#e62e3d] p-2 rounded-xl shadow-md border border-gray-200 transition-all duration-200 z-[1000] cursor-pointer backdrop-blur-sm"
+            title="Expand Map"
+          >
+            <Maximize2 size={16} />
+          </button>
+        )}
 
         {/* Floating GPS Target Action */}
         <button

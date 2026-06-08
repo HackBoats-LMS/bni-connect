@@ -294,7 +294,14 @@ export default function SettingsPage() {
                   <p className="text-[10px] font-bold text-green-600 mt-1.5 flex items-center gap-1"><Check size={12}/> Auto-selected map location from link!</p>
                 )}
                 {extractSuccess === false && (
-                  <p className="text-[10px] font-bold text-orange-500 mt-1.5">Could not auto-extract location from link, please place pin manually.</p>
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 mt-2">
+                    <p className="text-[11px] font-bold text-orange-600 mb-1">Could not extract coordinates from this link.</p>
+                    <p className="text-[10px] text-orange-700 leading-relaxed font-medium">
+                      Google Maps app links often hide exact locations. For an accurate pin:
+                      <br/>• Open Google Maps in your <b>web browser</b>, click <b>Directions</b>, and share that link instead.
+                      <br/>• Or, simply use the map below to pinpoint your location manually!
+                    </p>
+                  </div>
                 )}
                 {extractSuccess === null && !extractingMap && (
                   <p className="text-[10px] font-medium text-gray-500 mt-1.5">Your pin location will be auto-selected from this map link.</p>
